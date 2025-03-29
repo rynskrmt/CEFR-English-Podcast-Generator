@@ -57,7 +57,7 @@ SPEAKER_2_NAME=Speaker 2
 ## 使用方法
 
 ```bash
-python main.py
+python app.py
 ```
 
 ブラウザで自動的に開かれるGradioインターフェースから、以下の情報を入力してください：
