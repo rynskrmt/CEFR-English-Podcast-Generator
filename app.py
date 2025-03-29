@@ -391,7 +391,7 @@ ui = gr.Interface(
         gr.Textbox(label="トピック", placeholder="e.g., Indie Hacking"),
         gr.Textbox(label="追加情報（オプション）", placeholder="", lines=3),
         gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="CEFRレベル", value="B1", info="CEFRレベルは目安であり、実際の難易度は内容により変動することがあります。"),
-        gr.Slider(minimum=100, maximum=1000, value=300, step=50, label="単語数", info=""),
+        gr.Slider(minimum=100, maximum=2000, value=300, step=50, label="単語数", info=""),
     ],
     outputs=[
         gr.Textbox(label="トランスクリプト"),
