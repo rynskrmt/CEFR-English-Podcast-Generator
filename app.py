@@ -108,7 +108,6 @@ def calculate_tts_cost(text, model):
     return cost
 
 def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
-    # TEXT_MODELはもう引数として渡さず、環境変数から取得
     text_model = TEXT_MODEL
     
     # 追加情報があれば、プロンプトに含める
@@ -118,23 +117,36 @@ def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
             You are tasked with generating an engaging, educational and fun podcast dialogue designed specifically for English language learners at CEFR level {cefr_level}.
             The conversation should focus on the topic: '{topic}'.{additional_info_text}
             Craft a natural, lively, and informative discussion between two speakers (clearly identified as Speaker 1 and Speaker 2). The dialogue should emulate the engaging, conversational style typical of NPR podcasts, using accessible language appropriate for the specified CEFR level.
+            
+            IMPORTANT: The dialogue MUST be EXACTLY {word_count} words in total length. This is a strict requirement.
+            
             Your dialogue must:
-                - Be around {word_count} words.
+                - Be EXACTLY {word_count} words total. Count carefully.
+                - For longer podcasts, create a detailed conversation with multiple subtopics and perspectives.
                 - Clearly alternate turns between Speaker 1 and Speaker 2.
                 - Avoid special characters or markdown formatting.
                 - Define any specialized terms clearly and simply, suitable for a broad, learner-oriented audience.
                 - Highlight key points, interesting facts, and relevant definitions within the conversation naturally.
                 - Include a few jokes and interesting facts.
                 - Make it fun and interesting.
+                - Have a clear introduction, body with multiple discussion points, and conclusion.
+            
             Use the following format:
                 {SPEAKER_1_NAME}: sentence
                 {SPEAKER_2_NAME}: sentence
+                
             Remember, your primary goal is to deliver an authentic, stimulating, and educational listening experience tailored for learners of English.
+            The word count of {word_count} is mandatory - please ensure the dialogue meets this exact length.
             """
+
+    # 長い対話の場合は最大トークン数を増やす
+    max_tokens = min(4000, word_count * 2)  # 単語数の2倍のトークン数を上限として設定
 
     response = client.chat.completions.create(
         model=text_model,
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_tokens,  # 最大トークン数を指定
+        temperature=0.7,  # 多様性を少し上げる
     )
 
     # APIコストを計算
@@ -142,6 +154,9 @@ def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
 
     dialogue_content = response.choices[0].message.content
     if dialogue_content:
+        # 単語数を確認してログに出力
+        word_count_actual = len(dialogue_content.split())
+        print(f"要求単語数: {word_count}, 実際の単語数: {word_count_actual}")
         return dialogue_content.strip()
     else:
         raise ValueError("No content was returned from OpenAI.")
@@ -391,7 +406,7 @@ ui = gr.Interface(
         gr.Textbox(label="トピック", placeholder="e.g., Indie Hacking"),
         gr.Textbox(label="追加情報（オプション）", placeholder="", lines=3),
         gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="CEFRレベル", value="B1", info="CEFRレベルは目安であり、実際の難易度は内容により変動することがあります。"),
-        gr.Slider(minimum=100, maximum=2000, value=300, step=50, label="単語数", info=""),
+        gr.Slider(minimum=100, maximum=5000, value=300, step=50, label="単語数", info=""),
     ],
     outputs=[
         gr.Textbox(label="トランスクリプト"),
