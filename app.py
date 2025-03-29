@@ -140,6 +140,7 @@ def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
             """
 
     # 長い対話の場合は最大トークン数を増やす
+    word_count = int(word_count)
     max_tokens = min(4000, word_count * 2)  # 単語数の2倍のトークン数を上限として設定
 
     response = client.chat.completions.create(
@@ -368,7 +369,7 @@ def text_to_audio(text, speaker_1_voice, speaker_2_voice, audio_model):
     
     return file_path
 
-def generate_audio_dialogue(topic, cefr_level, word_count=300, additional_info=""):
+def generate_audio_dialogue(topic, additional_info="", cefr_level="B1", word_count=300):
     # 料金情報をリセット
     global api_cost_info
     api_cost_info = {
