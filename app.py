@@ -146,7 +146,7 @@ def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
     response = client.chat.completions.create(
         model=text_model,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=max_tokens,  # 最大トークン数を指定
+        max_completion_tokens=max_tokens,
         temperature=0.7,  # 多様性を少し上げる
     )
 
