@@ -9,7 +9,6 @@ app_file: app.py
 pinned: false
 ---
 
-# CEFR English Podcast Generator
 ## 🗺️概要
 ### 🎯背景
 
