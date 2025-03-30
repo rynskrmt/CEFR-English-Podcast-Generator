@@ -28,7 +28,8 @@ pinned: false
 ✅使用したAPIの料金を自動で計算して表示  
 
 ## 🎥デモ動画
-<blockquote class="twitter-tweet" data-media-max-width="560"><p lang="ja" dir="ltr">英語学習アプリをOSSで公開🚀<br>自分の興味 × 英語レベルに合わせて、英会話教材を自動生成できるツールを作りました。<br><br>✅ トピックとCEFRレベル（A1 - C2）を入力<br>✅ 英語ポッドキャスト音声（MP3）を生成<br>✅ トランスクリプトを自動生成<br><br>興味のあるテーマだから、毎日少しずつでも続けられます🎧 <a href="https://t.co/h1yDWMBmY8">pic.twitter.com/h1yDWMBmY8</a></p>&mdash; rynskrmt（りゅうのすけ） (@rynskrmt) <a href="https://twitter.com/rynskrmt/status/1905931286314905982?ref_src=twsrc%5Etfw">March 29, 2025</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+https://github.com/user-attachments/assets/02feffa6-176d-461a-98ad-95bffadc1f09
+
 
 ## 📦インストール方法
 
