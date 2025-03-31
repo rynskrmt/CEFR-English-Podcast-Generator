@@ -1,14 +1,3 @@
----
-title: CEFR English Podcast Generator
-emoji: 🎧
-colorFrom: blue
-colorTo: green
-sdk: gradio
-sdk_version: 4.19.2
-app_file: app.py
-pinned: false
----
-
 ## 🗺️概要
 ### 🎯背景
 
@@ -29,7 +18,6 @@ pinned: false
 
 ## 🎥デモ動画
 https://github.com/user-attachments/assets/02feffa6-176d-461a-98ad-95bffadc1f09
-
 
 ## 📦インストール方法
 
