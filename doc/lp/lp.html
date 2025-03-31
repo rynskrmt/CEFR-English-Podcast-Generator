@@ -31,15 +31,20 @@
     <nav class="bg-white shadow-sm sticky top-0 z-50">
         <div class="container mx-auto px-6 py-3 flex justify-between items-center">
             <a href="#" class="font-bold text-xl text-cyan-700">PodcastGen AI</a>
-            <div>
+            <div class="flex items-center space-x-2">
                 <a href="#features" class="text-gray-600 hover:text-cyan-600 px-3 py-2">特徴</a>
                 <a href="#demo" class="text-gray-600 hover:text-cyan-600 px-3 py-2">デモ</a>
                 <a href="https://github.com/rynskrmt/CEFR-English-Podcast-Generator" target="_blank"
                     rel="noopener noreferrer"
-                    class="bg-gray-700 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-md text-sm ml-4 transition duration-150 ease-in-out"><i
-                        class="fab fa-github mr-1"></i> GitHub</a>
-                <a href="YOUR_PRE_REGISTRATION_FORM_URL" target="_blank" rel="noopener noreferrer"
-                    class="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-4 py-2 rounded-md text-sm ml-2 transition duration-150 ease-in-out">サービス事前登録</a>
+                    class="bg-gray-700 hover:bg-gray-800 text-white font-semibold px-3 py-2 rounded-md text-sm transition duration-150 ease-in-out">
+                    <i class="fab fa-github"></i>
+                    <span class="hidden md:inline-block ml-1">GitHub</span>
+                </a>
+                <a href="https://forms.gle/EeojQznmmP3qpG7F7" target="_blank" rel="noopener noreferrer"
+                    class="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-3 py-2 rounded-md text-sm transition duration-150 ease-in-out">
+                    <i class="fas fa-bell"></i>
+                    <span class="hidden md:inline-block ml-1">サービス事前登録</span>
+                </a>
             </div>
         </div>
     </nav>
@@ -53,31 +58,36 @@
             <p class="text-lg md:text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
                 トピックとレベルを指定するだけ。教育者や学習者のための、自然で魅力的な会話形式のリスニング教材を自動生成します。
             </p>
-            <div class="space-x-4">
+            <div
+                class="space-x-0 space-y-4 md:space-y-0 md:space-x-4 flex flex-col md:flex-row justify-center items-center">
                 <a href="https://github.com/rynskrmt/CEFR-English-Podcast-Generator" target="_blank"
                     rel="noopener noreferrer"
-                    class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-150 ease-in-out">
+                    class="w-full md:w-auto bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-150 ease-in-out">
                     <i class="fab fa-github mr-2"></i> GitHubでコードを見る
                 </a>
-                <a href="YOUR_PRE_REGISTRATION_FORM_URL" target="_blank" rel="noopener noreferrer"
-                    class="bg-white text-cyan-700 border border-cyan-700 hover:bg-cyan-50 font-bold py-3 px-8 rounded-lg text-lg transition duration-150 ease-in-out">
+                <a href="https://forms.gle/EeojQznmmP3qpG7F7" target="_blank" rel="noopener noreferrer"
+                    class="w-full md:w-auto bg-white text-cyan-700 border border-cyan-700 hover:bg-cyan-50 font-bold py-3 px-8 rounded-lg text-lg transition duration-150 ease-in-out">
                     <i class="fas fa-bell mr-2"></i> 簡単クラウド版 事前登録
                 </a>
             </div>
             <!-- Optional: Add a visual element here -->
             <div class="mt-12">
-                <img src="placeholder_screenshot.png" alt="Gradio UI Screenshot"
-                    class="mx-auto rounded-lg shadow-xl max-w-3xl w-full">
-                <!-- Placeholder: Replace with actual screenshot or illustration -->
+                <div class="aspect-video w-full max-w-3xl mx-auto bg-white p-2 rounded-lg shadow-md"> <!-- 背景色と影を追加 -->
+                    <iframe
+                        src="https://player.vimeo.com/video/1071041402?h=629bee259f&amp;badge=0&amp;autoplay=1&amp;player_id=0&amp;app_id=58479&amp;show_title=0&amp;show_byline=0&amp;show_portrait=0&amp;muted=1&amp;loop=1&amp;autopause=0&amp;player_id=0&amp;app_id=58479"
+                        class="w-full h-full" frameborder="0" allow="autoplay; fullscreen; picture-in-picture"
+                        allowfullscreen>
+                    </iframe>
+                    <script src="https://player.vimeo.com/api/player.js"></script>
+                </div>
             </div>
-        </div>
     </section>
 
     <!-- 2. Problem Section -->
     <section class="py-16 bg-white">
         <div class="container mx-auto px-6 text-center">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">こんな課題、ありませんか？</h2>
-            <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
                 <div class="bg-gray-100 p-6 rounded-lg shadow">
                     <h3 class="font-semibold text-lg mb-2"><i
                             class="fas fa-search text-cyan-600 mr-2"></i>適切な教材探しに時間がかかる</h3>
@@ -96,7 +106,7 @@
     <section id="features" class="py-16 bg-gray-50">
         <div class="container mx-auto px-6">
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">PodcastGen AIが解決します</h2>
-            <div class="grid md:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
                 <!-- Feature 1: Topic -->
                 <div
                     class="text-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -147,84 +157,86 @@
     <section id="demo" class="py-16 bg-white">
         <div class="container mx-auto px-6">
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">実際の生成サンプル</h2>
-            <div class="bg-gray-100 p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
-                <h3 class="text-2xl font-semibold mb-4">サンプル:「リモートワークのコツ」(CEFR B1, 300語)</h3>
+            <div class="bg-gray-100 p-4 md:p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
+                <h3 class="text-xl md:text-2xl font-semibold mb-4">サンプル:「リモートワークのコツ」(CEFR B1, 300語)</h3>
                 <div class="mb-6">
                     <h4 class="font-semibold text-lg mb-2 text-gray-700">生成されたトランスクリプト (抜粋):</h4>
-                    <div class="bg-white p-4 rounded shadow-inner max-h-40 overflow-y-auto text-sm font-mono">
+                    <div
+                        class="bg-white p-2 md:p-4 rounded shadow-inner max-h-40 overflow-y-auto text-xs md:text-sm font-mono">
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Hey Ken! Let's talk about something fun today—a
-                                cool product to help create podcasts for B1 English learners!</span>
+                            <span class="flex-grow leading-relaxed pl-2">Hi Ken! Today we're talking about a fun topic:
+                                a useful product to create podcasts for English learners at B1 level. </span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Sounds awesome, Naomi! Podcasts are perfect
-                                because you can listen anywhere—on the bus, while cooking... super flexible!</span>
+                            <span class="flex-grow leading-relaxed pl-2">Hi Naomi! That sounds great. Podcasts are an
+                                awesome way to learn English because you can listen anywhere, like on the bus or while
+                                cooking.</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Totally! I'm thinking of software that makes
-                                podcasting easy. Like, it could have script ideas, sound effects, editing tools—all in
-                                one.</span>
+                            <span class="flex-grow leading-relaxed pl-2">Exactly! A good product for this is a software
+                                that helps create podcasts easily. It can include features like script suggestions,
+                                sound effects, and editing tools.</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">I like that. And for B1 learners, it should
-                                suggest simple, clear vocabulary. That would really help them follow along.</span>
+                            <span class="flex-grow leading-relaxed pl-2">That’s true. And for B1 learners, the language
+                                used should be clear and simple. Maybe the software can suggest vocabulary suitable for
+                                B1 level.
+                            </span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Exactly! Podcasts are kinda like pizza—you can
-                                pick any topping, or in this case, topic. Travel, science, even fun facts!</span>
+                            <span class="flex-grow leading-relaxed pl-2">Yes! And did you know podcasts are like pizza?
+                                You can choose different toppings, or in this case, topics. From travel to science,
+                                anything goes!
+                            </span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Love that metaphor! And maybe the software can
-                                explain tricky words too. Like "script"—that just means the written text of a
-                                show.</span>
+                            <span class="flex-grow leading-relaxed pl-2">I love that comparison! Podcasts can also
+                                include explanations of tricky words. Like the word “script,” which means the written
+                                text of a podcast or show.</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Great idea. And how about quizzes at the end of
-                                episodes? That way, learners can test what they understood.</span>
+                            <span class="flex-grow leading-relaxed pl-2">Good point, Ken. Interactive features are also
+                                useful. Maybe a quiz at the end of each episode to test understanding?</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Oh, for sure! And here's a fun fact: "podcast"
-                                comes from "iPod" + "broadcast." Even though no one uses iPods now, the name
-                                stuck!</span>
+                            <span class="flex-grow leading-relaxed pl-2">Definitely! And a fun fact: the word “podcast”
+                                comes from combining “iPod” and “broadcast.” Even though we don’t need an iPod to listen
+                                anymore!</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Haha, true! And involving listeners could be
-                                cool
-                                too—like asking them to send in questions or share their stories.</span>
+                            <span class="flex-grow leading-relaxed pl-2">That’s interesting! Also, involving listeners
+                                by asking them to send questions or share their experiences can make it engaging.</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Totally. And let's not forget humor! A funny
-                                story
-                                or joke can make learning way more enjoyable.</span>
+                            <span class="flex-grow leading-relaxed pl-2">Right. And remember, humor can make learning
+                                fun. Jokes or funny stories can help relax and encourage learners to keep
+                                listening.</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Couldn't agree more. So, to sum it up: the
-                                perfect
-                                podcast software should be easy to use, have clear language, fun features, and a bit of
-                                humor!</span>
+                            <span class="flex-grow leading-relaxed pl-2">Absolutely. So, in summary, a podcast software
+                                for B1 learners should be easy to use, with clear language, interactive features, and a
+                                touch of humor.</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Nailed it, Naomi. Podcasts are a fun, flexible
-                                way
-                                to improve English—and maybe even make someone smile along the way!</span>
+                            <span class="flex-grow leading-relaxed pl-2">Agreed, Naomi. Podcasts can be a fun, flexible
+                                way to improve English. And maybe, just maybe, make someone smile!</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">That's the goal, Ken! Thanks for the chat.
-                                Let's
-                                keep learning fun!</span>
+                            <span class="flex-grow leading-relaxed pl-2">That’s the goal, Ken! Thanks for the chat.
+                                Let’s make learning fun!</span>
                         </div>
                         <p>...</p>
                     </div>
@@ -232,7 +244,7 @@
                 <div>
                     <h4 class="font-semibold text-lg mb-2 text-gray-700">生成された音声:</h4>
                     <audio controls class="w-full">
-                        <source src="sample_podcast.mp3" type="audio/mpeg">
+                        <source src="sample.mp3" type="audio/mpeg">
                         Your browser does not support the audio element.
                     </audio>
                 </div>
@@ -247,14 +259,15 @@
     <section class="py-16 bg-gray-50">
         <div class="container mx-auto px-6">
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">OSS版を使ってみる</h2>
-            <div class="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-md">
+            <div class="max-w-3xl mx-auto bg-white p-4 md:p-8 rounded-lg shadow-md">
                 <h3 class="text-xl font-semibold mb-4">簡単セットアップ (3ステップ)</h3>
                 <ol class="list-decimal list-inside space-y-3 text-gray-700">
                     <li>
                         <strong class="font-semibold">リポジトリをクローン:</strong><br />
                         <code
-                            class="bg-gray-200 text-sm p-1 rounded">git clone https://github.com/rynskrmt/CEFR-English-Podcast-Generator</code><br />
-                        <code class="bg-gray-200 text-sm p-1 rounded">cd CEFR-English-Podcast-Generator</code>
+                            class="bg-gray-200 text-xs md:text-sm p-1 rounded break-words">git clone https://github.com/rynskrmt/CEFR-English-Podcast-Generator</code><br />
+                        <code
+                            class="bg-gray-200 text-xs md:text-sm p-1 rounded">cd CEFR-English-Podcast-Generator</code>
                     </li>
                     <li>
                         <strong class="font-semibold">設定 & 依存関係インストール:</strong><br />
@@ -285,7 +298,7 @@
             <p class="text-lg md:text-xl text-cyan-100 mb-8 max-w-3xl mx-auto">
                 セットアップやAPIキー設定は不要。ブラウザだけで、いつでもどこでもカスタムポッドキャストを作成できるサービスを準備中です。
             </p>
-            <a href="YOUR_PRE_REGISTRATION_FORM_URL" target="_blank" rel="noopener noreferrer"
+            <a href="https://forms.gle/EeojQznmmP3qpG7F7" target="_blank" rel="noopener noreferrer"
                 class="bg-white text-cyan-700 font-bold py-3 px-8 rounded-lg text-lg hover:bg-gray-100 transition duration-150 ease-in-out shadow-lg">
                 <i class="fas fa-envelope-open-text mr-2"></i> 事前登録して最新情報を受け取る
             </a>
@@ -299,9 +312,10 @@
             <div class="mb-4">
                 <a href="https://github.com/rynskrmt/CEFR-English-Podcast-Generator" target="_blank"
                     rel="noopener noreferrer" class="hover:text-white px-3"><i class="fab fa-github"></i> GitHub</a> |
-                <a href="YOUR_LICENSE_URL" target="_blank" rel="noopener noreferrer" class="hover:text-white px-3">ライセンス
-                    (MIT)</a> | <!-- Replace with your actual license -->
-                <a href="YOUR_PRE_REGISTRATION_FORM_URL" target="_blank" rel="noopener noreferrer"
+                <a href="https://github.com/rynskrmt/CEFR-English-Podcast-Generator/blob/main/LICENSE" target="_blank"
+                    rel="noopener noreferrer" class="hover:text-white px-3">ライセンス
+                    (Apache 2.0)</a> | <!-- Replace with your actual license -->
+                <a href="https://forms.gle/EeojQznmmP3qpG7F7" target="_blank" rel="noopener noreferrer"
                     class="hover:text-white px-3">サービス事前登録</a>
             </div>
             <p>&copy; 2025 rynskrmt. All rights reserved.</p>
