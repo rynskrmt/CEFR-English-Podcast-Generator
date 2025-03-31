@@ -5,6 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CEFR English Podcast ジェネレーター - AIでカスタム英語学習コンテンツを</title>
+
+    <!-- Meta Tags -->
+    <meta name="description"
+        content="トピックとレベルを指定するだけ。AIを使ってCEFRレベル対応の英語学習ポッドキャストを自動生成。教育者や学習者のための自然で魅力的な会話形式のリスニング教材を作成するツール。">
+    <meta name="keywords" content="英語学習, ポッドキャスト, CEFR, AI, 英語リスニング, 英語教材, 英語会話, 教育ツール, AIEd">
+    <meta name="author" content="rynskrmt">
+
+    <!-- OGP (Open Graph Protocol) -->
+    <meta property="og:title" content="CEFR English Podcast ジェネレーター - AIでカスタム英語学習コンテンツを">
+    <meta property="og:description" content="AIでCEFRレベル対応の英語学習ポッドキャストを自動生成。教育者や学習者のための自然な会話形式リスニング教材。">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="PodcastGen AI">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:title" content="CEFR English Podcast ジェネレーター">
+    <meta name="twitter:description" content="AIでCEFRレベル対応の英語学習ポッドキャストを自動生成。カスタム英語学習コンテンツ。">
+
     <!-- Tailwind CSS CDN (開発用。本番ではビルド推奨) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -32,8 +49,8 @@
         <div class="container mx-auto px-6 py-3 flex justify-between items-center">
             <a href="#" class="font-bold text-xl text-cyan-700">PodcastGen AI</a>
             <div class="flex items-center space-x-2">
-                <a href="#features" class="text-gray-600 hover:text-cyan-600 px-3 py-2">特徴</a>
-                <a href="#demo" class="text-gray-600 hover:text-cyan-600 px-3 py-2">デモ</a>
+                <a href="#features" class="text-gray-600 hover:text-cyan-600 px-3 py-2 hidden md:inline-block">特徴</a>
+                <a href="#demo" class="text-gray-600 hover:text-cyan-600 px-3 py-2 hidden md:inline-block">デモ</a>
                 <a href="https://github.com/rynskrmt/CEFR-English-Podcast-Generator" target="_blank"
                     rel="noopener noreferrer"
                     class="bg-gray-700 hover:bg-gray-800 text-white font-semibold px-3 py-2 rounded-md text-sm transition duration-150 ease-in-out">
@@ -182,7 +199,7 @@
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">That’s true. And for B1 learners, the language
+                            <span class="flex-grow leading-relaxed pl-2">That's true. And for B1 learners, the language
                                 used should be clear and simple. Maybe the software can suggest vocabulary suitable for
                                 B1 level.
                             </span>
@@ -197,7 +214,7 @@
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
                             <span class="flex-grow leading-relaxed pl-2">I love that comparison! Podcasts can also
-                                include explanations of tricky words. Like the word “script,” which means the written
+                                include explanations of tricky words. Like the word "script," which means the written
                                 text of a podcast or show.</span>
                         </div>
                         <div class="mb-2 flex">
@@ -207,13 +224,13 @@
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-green-600">Ken:</span>
-                            <span class="flex-grow leading-relaxed pl-2">Definitely! And a fun fact: the word “podcast”
-                                comes from combining “iPod” and “broadcast.” Even though we don’t need an iPod to listen
+                            <span class="flex-grow leading-relaxed pl-2">Definitely! And a fun fact: the word "podcast"
+                                comes from combining "iPod" and "broadcast." Even though we don't need an iPod to listen
                                 anymore!</span>
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">That’s interesting! Also, involving listeners
+                            <span class="flex-grow leading-relaxed pl-2">That's interesting! Also, involving listeners
                                 by asking them to send questions or share their experiences can make it engaging.</span>
                         </div>
                         <div class="mb-2 flex">
@@ -235,8 +252,8 @@
                         </div>
                         <div class="mb-2 flex">
                             <span class="w-20 flex-shrink-0 font-bold text-blue-600">Naomi:</span>
-                            <span class="flex-grow leading-relaxed pl-2">That’s the goal, Ken! Thanks for the chat.
-                                Let’s make learning fun!</span>
+                            <span class="flex-grow leading-relaxed pl-2">That's the goal, Ken! Thanks for the chat.
+                                Let's make learning fun!</span>
                         </div>
                         <p>...</p>
                     </div>
@@ -301,7 +318,7 @@
             </p>
             <a href="https://forms.gle/EeojQznmmP3qpG7F7" target="_blank" rel="noopener noreferrer"
                 class="bg-white text-cyan-700 font-bold py-3 px-8 rounded-lg text-lg hover:bg-gray-100 transition duration-150 ease-in-out shadow-lg">
-                <i class="fas fa-envelope-open-text mr-2"></i> 事前登録して最新情報を受け取る
+                <i class="fas fa-envelope-open-text mr-2"></i> 事前登録はこちら
             </a>
             <p class="text-sm mt-4 text-cyan-200">早期アクセスや特典情報をお届けします！</p>
         </div>
@@ -310,14 +327,14 @@
     <!-- 7. Footer -->
     <footer class="bg-gray-800 text-gray-400 py-8">
         <div class="container mx-auto px-6 text-center">
-            <div class="mb-4">
+            <div class="flex flex-col md:flex-row justify-center md:space-x-6 space-y-2 md:space-y-0 mb-4">
                 <a href="https://github.com/rynskrmt/CEFR-English-Podcast-Generator" target="_blank"
-                    rel="noopener noreferrer" class="hover:text-white px-3"><i class="fab fa-github"></i> GitHub</a> |
+                    rel="noopener noreferrer" class="hover:text-white"><i class="fab fa-github"></i> GitHub</a>
                 <a href="https://github.com/rynskrmt/CEFR-English-Podcast-Generator/blob/main/LICENSE" target="_blank"
-                    rel="noopener noreferrer" class="hover:text-white px-3">ライセンス
-                    (Apache 2.0)</a> | <!-- Replace with your actual license -->
+                    rel="noopener noreferrer" class="hover:text-white md:border-l md:border-gray-600 md:pl-6">ライセンス
+                    (Apache-2.0)</a>
                 <a href="https://forms.gle/EeojQznmmP3qpG7F7" target="_blank" rel="noopener noreferrer"
-                    class="hover:text-white px-3">サービス事前登録</a>
+                    class="hover:text-white md:border-l md:border-gray-600 md:pl-6">サービス事前登録</a>
             </div>
             <p>&copy; 2025 rynskrmt. All rights reserved.</p>
         </div>
