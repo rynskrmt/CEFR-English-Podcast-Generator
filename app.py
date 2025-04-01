@@ -1,47 +1,170 @@
 import gradio as gr
-from openai import OpenAI
 import io, os
-from dotenv import load_dotenv
 import uuid
 from tempfile import NamedTemporaryFile
 from pathlib import Path
 import time
 import traceback
 import datetime
+from dotenv import load_dotenv
 
-load_dotenv()
+# --- Provider Specific Imports ---
+try:
+    from openai import OpenAI, APIError # Import APIError for better handling
+except ImportError:
+    print("OpenAI library not installed. Skipping OpenAI specific imports.")
+    OpenAI = None
+    APIError = None
 
-# .envから設定を読み込む
-TEXT_MODEL = os.getenv("TEXT_MODEL", "gpt-4o")
-AUDIO_MODEL = os.getenv("AUDIO_MODEL", "tts-1")
-SPEAKER_1_VOICE = os.getenv("SPEAKER_1_VOICE", "alloy")
-SPEAKER_2_VOICE = os.getenv("SPEAKER_2_VOICE", "echo")
+try:
+    import google.generativeai as genai
+    from google.cloud import texttospeech
+    from google.api_core import exceptions as google_exceptions # Import Google API exceptions
+except ImportError:
+    print("Google libraries (google-generativeai, google-cloud-texttospeech) not installed. Skipping Google specific imports.")
+    genai = None
+    texttospeech = None
+    google_exceptions = None
+# --- End Provider Specific Imports ---
+
+# --- 環境変数の読み込み ---
+load_dotenv(override=True)
+print(f"DEBUG: 環境変数を読み込み中...")
+TEXT_PROVIDER = os.getenv("TEXT_PROVIDER", "openai").lower()
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "openai").lower()
+TEXT_MODEL = os.getenv("TEXT_MODEL")
+AUDIO_MODEL = os.getenv("AUDIO_MODEL")
+SPEAKER_1_VOICE = os.getenv("SPEAKER_1_VOICE")
+SPEAKER_2_VOICE = os.getenv("SPEAKER_2_VOICE")
 SPEAKER_1_NAME = os.getenv("SPEAKER_1_NAME", "Speaker 1")
 SPEAKER_2_NAME = os.getenv("SPEAKER_2_NAME", "Speaker 2")
 
-# API料金計算用の定数（ドル単位 1000トークンあたり）
+print(f"DEBUG: TEXT_PROVIDER = '{TEXT_PROVIDER}'")
+print(f"DEBUG: TTS_PROVIDER = '{TTS_PROVIDER}'")
+print(f"DEBUG: TEXT_MODEL = '{TEXT_MODEL}'")
+
+# --- Configuration ---
+TEXT_PROVIDER = os.getenv("TEXT_PROVIDER", "openai").lower() # Default to openai
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "openai").lower()   # Default to openai
+
+TEXT_MODEL = os.getenv("TEXT_MODEL")
+AUDIO_MODEL = os.getenv("AUDIO_MODEL") # Identifier (e.g., "tts-1", "google-tts")
+SPEAKER_1_VOICE = os.getenv("SPEAKER_1_VOICE")
+SPEAKER_2_VOICE = os.getenv("SPEAKER_2_VOICE")
+SPEAKER_1_NAME = os.getenv("SPEAKER_1_NAME", "Speaker 1")
+SPEAKER_2_NAME = os.getenv("SPEAKER_2_NAME", "Speaker 2")
+
+# --- Client Initialization ---
+openai_client = None
+gemini_model = None
+google_tts_client = None
+
+def initialize_gemini_client(model_name=None):
+    """Initializes or reinitializes the Gemini client with the specified model."""
+    global gemini_model, TEXT_MODEL
+    
+    if model_name:
+        TEXT_MODEL = model_name
+    
+    if not TEXT_MODEL:
+        TEXT_MODEL = "gemini-1.5-flash-latest"  # デフォルトモデル
+        print(f"No model specified, using default model: {TEXT_MODEL}")
+    
+    # APIキーの確認
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        print("Warning: No API key found for Gemini. Check GEMINI_API_KEY or GOOGLE_API_KEY in .env")
+        return None
+    
+    # 古いバージョンのサポート
+    if hasattr(genai, 'configure'):
+        genai.configure(api_key=api_key)
+    
+    try:
+        # 新しいバージョン vs. 古いバージョンのAPI
+        if hasattr(genai, 'GenerativeModel'):
+            # 新しいバージョン
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            ]
+            model = genai.GenerativeModel(TEXT_MODEL, safety_settings=safety_settings)
+            print(f"Gemini model '{TEXT_MODEL}' initialized.")
+            return model
+        else:
+            print("Error: Could not find GenerativeModel in genai module.")
+            return None
+    except Exception as e:
+        print(f"Error initializing Gemini model '{TEXT_MODEL}': {e}")
+        return None
+
+
+if TEXT_PROVIDER == "openai" and OpenAI:
+    if not os.getenv("OPENAI_API_KEY"):
+        print("Warning: TEXT_PROVIDER is 'openai' but OPENAI_API_KEY is not set.")
+    else:
+        openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+elif TEXT_PROVIDER == "google" and genai:
+    if not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
+        print("Warning: TEXT_PROVIDER is 'google' but neither GEMINI_API_KEY nor GOOGLE_API_KEY is set.")
+    else:
+        gemini_model = initialize_gemini_client()
+        if not gemini_model:
+            print("Warning: Failed to initialize Gemini model.")
+
+if TTS_PROVIDER == "openai" and OpenAI:
+    if not openai_client: # Initialize if not already done for text
+         if not os.getenv("OPENAI_API_KEY"):
+             print("Warning: TTS_PROVIDER is 'openai' but OPENAI_API_KEY is not set.")
+         else:
+            openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+elif TTS_PROVIDER == "google" and texttospeech:
+    try:
+        # GOOGLE_APPLICATION_CREDENTIALS env var will be used automatically if set
+        # Otherwise, it uses Application Default Credentials (ADC)
+        google_tts_client = texttospeech.TextToSpeechClient()
+        print("Google TTS Client initialized.")
+    except Exception as e:
+        print(f"Error initializing Google TTS Client: {e}. Ensure credentials (ADC or GOOGLE_APPLICATION_CREDENTIALS) are set up correctly.")
+        google_tts_client = None
+# --- End Client Initialization ---
+
+# --- Pricing ---
+# Add Gemini and Google TTS pricing (example values, update with current rates)
+# Gemini pricing can be complex (per character/token, depends on model, free tier exists)
+# Google TTS pricing (per million characters, standard vs WaveNet)
 MODEL_PRICES = {
-    "gpt-4.5-preview": {"input": 0.075, "output": 0.150},
-    "gpt-4o": {"input": 0.0025, "output": 0.010},
-    "gpt-4o-audio-preview": {"input": 0.0025, "output": 0.010},
-    "gpt-4o-realtime-preview": {"input": 0.0050, "output": 0.020},
-    "gpt-4o-mini": {"input": 0.00015, "output": 0.00060},
-    "gpt-4o-mini-audio-preview": {"input": 0.00015, "output": 0.00060},
-    "gpt-4o-mini-realtime-preview": {"input": 0.00060, "output": 0.00240},
-    "gpt-4o-mini-search-preview": {"input": 0.00015, "output": 0.00060},
-    "o1": {"input": 0.015, "output": 0.060},
-    "o1-pro": {"input": 0.150, "output": 0.600},
-    "o3-mini": {"input": 0.00110, "output": 0.00440},
-    "o1-mini": {"input": 0.00110, "output": 0.00440}
+    # OpenAI
+    "gpt-4o": {"input": 0.005 / 1000, "output": 0.015 / 1000}, # Price per token
+    # ... other OpenAI models ...
+    # Google Gemini (Example using per character pricing for simplicity, check official pricing)
+    # Using "per 1k chars" similar to some Vertex AI models as an example
+    "gemini-1.5-flash-latest": {"input": 0.000125 / 1000, "output": 0.000375 / 1000}, # Example per 1k characters
+    "gemini-1.5-pro-latest": {"input": 0.00125 / 1000, "output": 0.00375 / 1000},    # Example per 1k characters
+    "gemini-pro": {"input": 0.000125 / 1000, "output": 0.000375 / 1000}, # Example per 1k chars (check if token based)
 }
 
-# TTS料金計算用の定数（ドル単位 1000文字あたり）
 TTS_PRICES = {
-    "tts-1": 0.015,
-    "tts-1-hd": 0.03
+    # OpenAI (per 1k characters)
+    "tts-1": 0.015 / 1000,
+    "tts-1-hd": 0.030 / 1000,
+    # Google Cloud TTS (per 1 character, after free tier)
+    # Standard voices: $4 per 1 million chars = $0.000004 per char
+    # WaveNet voices: $16 per 1 million chars = $0.000016 per char
+    "google-tts-standard": 0.000004, # Price per character
+    "google-tts-wavenet": 0.000016   # Price per character
 }
 
-# 料金情報を保存するグローバル変数
+# Helper to determine Google TTS price tier based on voice name
+def get_google_tts_tier(voice_name):
+    if voice_name and "Wavenet" in voice_name:
+        return "google-tts-wavenet"
+    else:
+        return "google-tts-standard"
+
+# Global cost info
 api_cost_info = {
     "text_generation": 0.0,
     "audio_generation": 0.0,
@@ -49,329 +172,570 @@ api_cost_info = {
     "details": []
 }
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def calculate_text_cost(response, model):
-    """テキスト生成のコストを計算する関数"""
-    if model not in MODEL_PRICES:
-        # 未知のモデルの場合は推定できないため0を返す
-        return 0.0
-    
-    input_tokens = response.usage.prompt_tokens
-    output_tokens = response.usage.completion_tokens
-    
-    input_cost = (input_tokens / 1000) * MODEL_PRICES[model]["input"]
-    output_cost = (output_tokens / 1000) * MODEL_PRICES[model]["output"]
-    total_cost = input_cost + output_cost
-    
-    # コスト情報を記録
-    cost_detail = {
+# --- Cost Calculation Functions ---
+def calculate_text_cost(provider, model_name, input_data, output_data):
+    """Calculates text generation cost for OpenAI or Google Gemini."""
+    cost = 0.0
+    detail = {
         "timestamp": datetime.datetime.now().isoformat(),
-        "model": model,
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-        "input_cost": input_cost,
-        "output_cost": output_cost,
-        "total_cost": total_cost,
+        "provider": provider,
+        "model": model_name,
         "type": "text_generation"
     }
-    
-    api_cost_info["text_generation"] += total_cost
-    api_cost_info["total"] += total_cost
-    api_cost_info["details"].append(cost_detail)
-    
-    return total_cost
 
-def calculate_tts_cost(text, model):
-    """TTS（テキスト読み上げ）のコストを計算する関数"""
-    if model not in TTS_PRICES:
-        # 未知のモデルの場合は推定できないため0を返す
+    if model_name not in MODEL_PRICES:
+        print(f"Warning: Pricing not found for model '{model_name}'. Cost will be $0.00.")
+        detail["cost"] = 0.0
+        api_cost_info["details"].append(detail)
         return 0.0
-    
-    # OpenAIのTTSは文字数ベースで課金
-    char_count = len(text)
-    cost = (char_count / 1000) * TTS_PRICES[model]
-    
-    # コスト情報を記録
-    cost_detail = {
-        "timestamp": datetime.datetime.now().isoformat(),
-        "model": model,
-        "character_count": char_count,
-        "cost": cost,
-        "type": "audio_generation"
-    }
-    
-    api_cost_info["audio_generation"] += cost
+
+    prices = MODEL_PRICES[model_name]
+
+    if provider == "openai":
+        # Assumes input_data is usage.prompt_tokens, output_data is usage.completion_tokens
+        input_tokens = input_data
+        output_tokens = output_data
+        input_cost = input_tokens * prices["input"]
+        output_cost = output_tokens * prices["output"]
+        cost = input_cost + output_cost
+        detail.update({
+            "input_tokens": input_tokens, "output_tokens": output_tokens,
+            "input_cost": input_cost, "output_cost": output_cost, "total_cost": cost
+        })
+    elif provider == "google":
+         # Assumes input_data is prompt (string), output_data is response_text (string)
+         # Using character count for Gemini pricing example
+         # TODO: Update if Gemini provides token counts and prices are token-based
+        input_chars = len(input_data)
+        output_chars = len(output_data)
+        # Using 'input' price for input chars, 'output' price for output chars
+        # Check Gemini official pricing for the correct unit (token/char)
+        input_cost = input_chars * prices["input"]
+        output_cost = output_chars * prices["output"]
+        cost = input_cost + output_cost
+        detail.update({
+            "input_chars": input_chars, "output_chars": output_chars,
+            "input_cost": input_cost, "output_cost": output_cost, "total_cost": cost
+        })
+    else:
+        print(f"Warning: Unknown text provider '{provider}'. Cost calculation skipped.")
+        return 0.0
+
+    api_cost_info["text_generation"] += cost
     api_cost_info["total"] += cost
-    api_cost_info["details"].append(cost_detail)
-    
+    api_cost_info["details"].append(detail)
+    print(f"Text Generation Cost ({provider}/{model_name}): ${cost:.6f}")
     return cost
 
-def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
-    text_model = TEXT_MODEL
-    
-    # 追加情報があれば、プロンプトに含める
-    additional_info_text = f"\nAdditional information: {additional_info}" if additional_info else ""
-    
-    prompt = f"""
-            You are tasked with generating an engaging, educational and fun podcast dialogue designed specifically for English language learners at CEFR level {cefr_level}.
-            The conversation should focus on the topic: '{topic}'.{additional_info_text}
-            Craft a natural, lively, and informative discussion between two speakers (clearly identified as Speaker 1 and Speaker 2). The dialogue should emulate the engaging, conversational style typical of NPR podcasts, using accessible language appropriate for the specified CEFR level.
-            
-            IMPORTANT: The dialogue MUST be EXACTLY {word_count} words in total length. This is a strict requirement.
-            
-            Your dialogue must:
-                - Be EXACTLY {word_count} words total. Count carefully.
-                - For longer podcasts, create a detailed conversation with multiple subtopics and perspectives.
-                - Clearly alternate turns between Speaker 1 and Speaker 2.
-                - Avoid special characters or markdown formatting.
-                - Define any specialized terms clearly and simply, suitable for a broad, learner-oriented audience.
-                - Highlight key points, interesting facts, and relevant definitions within the conversation naturally.
-                - Include a few jokes and interesting facts.
-                - Make it fun and interesting.
-                - Have a clear introduction, body with multiple discussion points, and conclusion.
-            
-            Use the following format:
-                {SPEAKER_1_NAME}: sentence
-                {SPEAKER_2_NAME}: sentence
-                
-            Remember, your primary goal is to deliver an authentic, stimulating, and educational listening experience tailored for learners of English.
-            The word count of {word_count} is mandatory - please ensure the dialogue meets this exact length.
-            """
+def calculate_tts_cost(provider, model_identifier, voice_name, text):
+    """Calculates TTS cost for OpenAI or Google."""
+    cost = 0.0
+    char_count = len(text)
+    detail = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "provider": provider,
+        "model_identifier": model_identifier, # e.g., "tts-1", "google-tts"
+        "voice": voice_name,
+        "character_count": char_count,
+        "type": "audio_generation"
+    }
 
-    # 長い対話の場合は最大トークン数を増やす
-    word_count = int(word_count)
-    max_tokens = min(4000, word_count * 2)  # 単語数の2倍のトークン数を上限として設定
-
-    response = client.chat.completions.create(
-        model=text_model,
-        messages=[{"role": "user", "content": prompt}],
-        max_completion_tokens=max_tokens,
-        temperature=0.7,  # 多様性を少し上げる
-    )
-
-    # APIコストを計算
-    calculate_text_cost(response, text_model)
-
-    dialogue_content = response.choices[0].message.content
-    if dialogue_content:
-        # 単語数を確認してログに出力
-        word_count_actual = len(dialogue_content.split())
-        print(f"要求単語数: {word_count}, 実際の単語数: {word_count_actual}")
-        return dialogue_content.strip()
+    if provider == "openai":
+        if model_identifier in TTS_PRICES:
+            cost = char_count * TTS_PRICES[model_identifier]
+            detail["cost_per_char"] = TTS_PRICES[model_identifier]
+        else:
+            print(f"Warning: Pricing not found for OpenAI TTS model '{model_identifier}'. Cost will be $0.00.")
+            cost = 0.0
+    elif provider == "google":
+        tts_tier = get_google_tts_tier(voice_name)
+        if tts_tier in TTS_PRICES:
+            cost = char_count * TTS_PRICES[tts_tier]
+            detail["cost_per_char"] = TTS_PRICES[tts_tier]
+            detail["tts_tier"] = tts_tier # Add tier info
+        else:
+            # This case should ideally not happen if get_google_tts_tier is correct
+            print(f"Warning: Pricing not found for Google TTS tier '{tts_tier}'. Cost will be $0.00.")
+            cost = 0.0
     else:
-        raise ValueError("No content was returned from OpenAI.")
+        print(f"Warning: Unknown TTS provider '{provider}'. Cost calculation skipped.")
+        return 0.0
 
-def get_mp3(text, voice, audio_model):
+    detail["cost"] = cost
+    api_cost_info["audio_generation"] += cost
+    api_cost_info["total"] += cost
+    api_cost_info["details"].append(detail)
+    print(f"TTS Cost ({provider}/{voice_name}): ${cost:.6f} for {char_count} characters")
+    return cost
+# --- End Cost Calculation Functions ---
+
+# --- Core Logic Functions ---
+def generate_dialogue_openai(prompt, text_model, max_tokens):
+    """Generates dialogue using OpenAI API."""
+    if not openai_client:
+        raise ValueError("OpenAI client not initialized.")
     try:
-        # APIコストを計算（TTSの場合は事前に計算）
-        calculate_tts_cost(text, audio_model)
-        
-        with client.audio.speech.with_streaming_response.create(
-            model=audio_model,
-            voice=voice,
-            input=text,
-        ) as response:
-            with io.BytesIO() as file:
-                for chunk in response.iter_bytes():
-                    file.write(chunk)
-                return file.getvalue()
+        response = openai_client.chat.completions.create(
+            model=text_model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens, # Note: OpenAI uses max_tokens
+            temperature=0.7,
+        )
+        dialogue_content = response.choices[0].message.content
+        # Calculate cost using usage data
+        if response.usage:
+             calculate_text_cost("openai", text_model, response.usage.prompt_tokens, response.usage.completion_tokens)
+        else:
+             print("Warning: OpenAI response did not contain usage data. Cost calculation might be inaccurate.")
+             # Estimate cost based on char counts if needed (less accurate)
+             # calculate_text_cost("openai", text_model, len(prompt), len(dialogue_content))
+
+        return dialogue_content.strip() if dialogue_content else ""
+    except APIError as e:
+        print(f"OpenAI API Error: Status={e.status_code}, Message={e.message}")
+        raise  # Re-raise the error
     except Exception as e:
-        # APIエラーの詳細をテキストとして出力
+        print(f"Error during OpenAI dialogue generation: {e}")
+        traceback.print_exc()
+        raise
+
+def generate_dialogue_gemini(prompt, text_model, max_words):
+    """Generates dialogue using Google Gemini API."""
+    if not gemini_model:
+        raise ValueError(f"Gemini model '{TEXT_MODEL}' not initialized. Check API key and model name.")
+    try:
+        # Gemini uses max_output_tokens. Estimate based on words.
+        max_output_tokens = max_words * 3 # Rough estimate: 3 tokens per word
+
+        # generation_configの設定
+        generation_config = {
+            "max_output_tokens": max_output_tokens,
+            "temperature": 0.7,
+        }
+
+        print(f"--- Sending request to Gemini ({text_model}) ---")
+        print(f"Max Output Tokens: {max_output_tokens}")
+        print(f"---------------------------------------------")
+
+        # 古いバージョンのAPIでは直接テキストを渡す方法
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config=generation_config
+        )
+        
+        print(f"--- Received response from Gemini ---")
+
+        # 応答からテキストを抽出
+        try:
+            # 最新バージョンのレスポンス形式
+            if hasattr(response, 'parts'):
+                dialogue_content = "".join(part.text for part in response.parts)
+            # 古いバージョンのレスポンス形式
+            elif hasattr(response, 'text'):
+                dialogue_content = response.text
+            else:
+                # どちらの形式でもない場合は候補から取得を試みる
+                dialogue_content = response.candidates[0].content.parts[0].text
+        except (AttributeError, IndexError) as e:
+            print(f"Error extracting text from Gemini response: {e}")
+            print("Full Response:", response)
+            dialogue_content = None
+
+        # コスト計算
+        if hasattr(response, 'usage_metadata'):
+            print("Gemini Usage Metadata:", response.usage_metadata)
+            calculate_text_cost("google", text_model, prompt, dialogue_content or "")
+        else:
+            print("Warning: Gemini response did not contain usage_metadata. Estimating cost based on character count.")
+            calculate_text_cost("google", text_model, prompt, dialogue_content or "")
+
+        # 安全性チェック
+        if hasattr(response, 'prompt_feedback') and response.prompt_feedback and response.prompt_feedback.block_reason:
+            print(f"Warning: Prompt blocked by Gemini. Reason: {response.prompt_feedback.block_reason}")
+            raise ValueError(f"Prompt blocked by Gemini safety filters: {response.prompt_feedback.block_reason}")
+
+        if not dialogue_content:
+            # 応答がない場合、エラーをチェック
+            if hasattr(response, 'candidates') and response.candidates and hasattr(response.candidates[0], 'finish_reason'):
+                if response.candidates[0].finish_reason != 'STOP':
+                    print(f"Warning: Gemini generation finished unexpectedly. Reason: {response.candidates[0].finish_reason}")
+                    raise ValueError(f"Gemini generation failed or was blocked. Finish Reason: {response.candidates[0].finish_reason}")
+
+        return dialogue_content.strip() if dialogue_content else ""
+
+    except google_exceptions.GoogleAPICallError as e:
+        print(f"Google API Call Error: {e}")
+        if isinstance(e, google_exceptions.ResourceExhausted):
+            print("Quota likely exceeded for Gemini API.")
+        raise
+    except Exception as e:
+        print(f"Error during Gemini dialogue generation: {e}")
+        traceback.print_exc()
+        raise
+
+def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
+    """Generates dialogue using the selected text provider."""
+    word_count = int(word_count)
+    additional_info_text = f"\nAdditional information or constraints: {additional_info}" if additional_info else ""
+
+    # --- Unified Prompt ---
+    # Keep the prompt structure mostly the same, as both models understand it.
+    # Minor tweaks might be needed based on observed model behavior.
+    prompt = f"""
+            Generate an engaging, educational, and fun podcast dialogue for English language learners at CEFR level {cefr_level}.
+            Topic: '{topic}'.{additional_info_text}
+
+            Style: Natural, lively, informative discussion like an NPR podcast. Use accessible language for the CEFR level.
+            Speakers: Clearly identify turns for "{SPEAKER_1_NAME}" and "{SPEAKER_2_NAME}". Alternate turns.
+            Format:
+            {SPEAKER_1_NAME}: [Sentence]
+            {SPEAKER_2_NAME}: [Sentence]
+
+            Content Requirements:
+            - Total Length: STRICTLY {word_count} words. Count carefully.
+            - Structure: Clear introduction, body (multiple points/subtopics), and conclusion.
+            - Educational Elements: Define specialized terms simply. Highlight key points or facts naturally.
+            - Engagement: Include interesting facts or light humor if appropriate. Make it fun.
+            - Technical: Avoid markdown or special characters in the dialogue itself.
+
+            Remember the primary goal: an authentic, stimulating, educational listening experience tailored for English learners at the specified level and EXACT word count.
+            """
+    # --- End Unified Prompt ---
+
+    try:
+        start_time = time.time()
+        if TEXT_PROVIDER == "openai":
+            print(f"Using OpenAI ({TEXT_MODEL}) for text generation...")
+            # OpenAI needs max_tokens, estimate generously
+            max_tokens_openai = min(4000, word_count * 3) # More generous token estimate
+            dialogue_content = generate_dialogue_openai(prompt, TEXT_MODEL, max_tokens_openai)
+        elif TEXT_PROVIDER == "google":
+            print(f"Using Google Gemini ({TEXT_MODEL}) for text generation...")
+            dialogue_content = generate_dialogue_gemini(prompt, TEXT_MODEL, word_count)
+        else:
+            raise ValueError(f"Unsupported TEXT_PROVIDER: {TEXT_PROVIDER}")
+        end_time = time.time()
+
+        if dialogue_content:
+            actual_word_count = len(dialogue_content.split())
+            print(f"Dialogue generated ({TEXT_PROVIDER}) in {end_time - start_time:.2f} seconds.")
+            print(f"Requested word count: {word_count}, Actual word count: {actual_word_count}")
+            # Optional: Add logic here to retry or trim/pad if word count is critical and off
+            # if abs(actual_word_count - word_count) > word_count * 0.1: # e.g., if more than 10% off
+            #    print("Warning: Word count deviates significantly from request.")
+            return dialogue_content
+        else:
+            raise ValueError(f"No content returned from {TEXT_PROVIDER} API.")
+
+    except Exception as e:
+        print(f"Error in generate_dialogue: {e}")
+        # Log the error details
         error_details = {
             "timestamp": datetime.datetime.now().isoformat(),
+            "provider": TEXT_PROVIDER,
+            "model": TEXT_MODEL,
             "error_message": str(e),
             "error_type": type(e).__name__,
             "traceback": traceback.format_exc(),
-            "parameters": {
-                "model": audio_model,
-                "voice": voice,
-                "input_text_length": len(text),
-                "input_text_preview": text[:50] + ("..." if len(text) > 50 else "")
-            }
+            "parameters": { "topic": topic, "cefr": cefr_level, "words": word_count }
         }
-        
-        # エラー情報を整形して出力
-        print(f"===== OpenAI API エラー詳細 =====")
-        print(f"発生時刻: {error_details['timestamp']}")
-        print(f"エラータイプ: {error_details['error_type']}")
-        print(f"エラーメッセージ: {error_details['error_message']}")
-        print(f"使用モデル: {audio_model}")
-        print(f"使用ボイス: {voice}")
-        
-        if hasattr(e, 'status_code'):
-            error_details["status_code"] = e.status_code
-            print(f"ステータスコード: {e.status_code}")
-            
-        if hasattr(e, 'response') and hasattr(e.response, 'text'):
-            error_details["response_text"] = e.response.text
-            print(f"APIレスポンス: {e.response.text}")
-            
-        print(f"スタックトレース:")
-        print(error_details["traceback"])
-        print("================================")
-        
-        # 詳細なエラー情報を辞書として返し、呼び出し元でログに記録できるようにする
-        raise Exception(str(error_details))
+        # Consider writing this to a log file
+        print("--- ERROR DETAILS ---")
+        import json
+        print(json.dumps(error_details, indent=2))
+        print("---------------------")
+        # Re-raise or return a user-friendly error message
+        raise ValueError(f"Failed to generate dialogue using {TEXT_PROVIDER}. Check logs for details. Error: {e}")
 
-def text_to_audio(text, speaker_1_voice, speaker_2_voice, audio_model):
-    # 一時ディレクトリを作成
+
+def synthesize_speech_openai(text, voice, audio_model_name):
+    """Synthesizes speech using OpenAI TTS."""
+    if not openai_client:
+        raise ValueError("OpenAI client not initialized.")
+    try:
+        # Calculate cost *before* the API call
+        calculate_tts_cost("openai", audio_model_name, voice, text)
+
+        # Use streaming response
+        with openai_client.audio.speech.with_streaming_response.create(
+            model=audio_model_name, # Should be "tts-1" or "tts-1-hd"
+            voice=voice,
+            input=text,
+            response_format="mp3" # Explicitly set format
+        ) as response:
+            # Check for non-200 status codes if possible (depends on SDK version)
+            # if response.status_code != 200:
+            #    raise APIError(f"OpenAI TTS API returned status {response.status_code}", response=response)
+
+            # Read the streamed content into bytes
+            audio_bytes = response.read() # Read all data from the stream
+            if not audio_bytes:
+                 print("Warning: OpenAI TTS returned empty audio data.")
+                 return None # Indicate failure
+            return audio_bytes
+
+    except APIError as e:
+        print(f"OpenAI TTS API Error: Status={e.status_code}, Message={e.message}")
+        # Log details from e.response if available
+        # error_body = e.response.text if hasattr(e.response, 'text') else "N/A"
+        # print(f"Response Body: {error_body}")
+        raise # Re-raise
+    except Exception as e:
+        print(f"Error during OpenAI speech synthesis: {e}")
+        traceback.print_exc()
+        raise
+
+def synthesize_speech_google(text, voice_name, language_code="en-US", audio_encoding=texttospeech.AudioEncoding.MP3):
+    """Synthesizes speech using Google Cloud TTS."""
+    if not google_tts_client:
+        raise ValueError("Google TTS client not initialized.")
+    try:
+        # Calculate cost *before* the API call
+        calculate_tts_cost("google", "google-tts", voice_name, text) # Use generic ID 'google-tts'
+
+        synthesis_input = texttospeech.SynthesisInput(text=text)
+
+        # Ensure voice_name is provided
+        if not voice_name:
+             raise ValueError("Google TTS requires a valid voice_name.")
+
+        # Select the voice
+        voice = texttospeech.VoiceSelectionParams(
+            language_code=language_code, # Adjust if supporting other languages
+            name=voice_name
+            # ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL # Or specify if needed
+        )
+
+        # Select the type of audio file
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=audio_encoding # MP3, LINEAR16, OGG_OPUS etc.
+            # Optional: Adjust pitch, speaking rate
+            # speaking_rate=1.0,
+            # pitch=0.0
+        )
+
+        # Perform the text-to-speech request
+        response = google_tts_client.synthesize_speech(
+            input=synthesis_input, voice=voice, audio_config=audio_config
+        )
+
+        if not response.audio_content:
+             print("Warning: Google TTS returned empty audio data.")
+             return None # Indicate failure
+        return response.audio_content
+
+    except google_exceptions.GoogleAPICallError as e:
+        print(f"Google TTS API Call Error: {e}")
+        if isinstance(e, google_exceptions.InvalidArgument):
+            print(f"Likely issue with parameters like voice name ('{voice_name}') or language code.")
+        raise
+    except Exception as e:
+        print(f"Error during Google speech synthesis: {e}")
+        traceback.print_exc()
+        raise
+
+# Renamed get_mp3 to synthesize_speech for broader applicability
+def synthesize_speech(text, voice, audio_model_identifier):
+    """Synthesizes speech using the selected TTS provider."""
+    try:
+        if TTS_PROVIDER == "openai":
+             # audio_model_identifier should be "tts-1" or "tts-1-hd"
+            return synthesize_speech_openai(text, voice, audio_model_identifier)
+        elif TTS_PROVIDER == "google":
+            # 'voice' parameter contains the Google voice name (e.g., "en-US-Wavenet-D")
+            # 'audio_model_identifier' is just "google-tts" for costing
+             return synthesize_speech_google(text, voice) # Language code defaults to en-US
+        else:
+            raise ValueError(f"Unsupported TTS_PROVIDER: {TTS_PROVIDER}")
+    except Exception as e:
+        # Log the error with context
+        print(f"--- TTS Synthesis Error ---")
+        print(f"Provider: {TTS_PROVIDER}")
+        print(f"Voice: {voice}")
+        print(f"Text Snippet: {text[:80]}...")
+        print(f"Error: {e}")
+        print(f"Traceback:")
+        traceback.print_exc()
+        print(f"-------------------------")
+        # Return None to indicate failure for this line
+        return None
+
+
+def text_to_audio(text, speaker_1_voice, speaker_2_voice, audio_model_id):
+    """Processes dialogue text line by line and generates concatenated audio."""
     temporary_directory = "./gradio_cached_examples/tmp/"
     os.makedirs(temporary_directory, exist_ok=True)
-    
-    # ログディレクトリを作成
     log_directory = "./logs/"
     os.makedirs(log_directory, exist_ok=True)
-    
-    # 現在の日時を取得してログファイル名に含める
-    current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    # ファイル名をUUIDで生成
-    file_uuid = uuid.uuid4()
-    file_path = os.path.join(temporary_directory, f"{file_uuid}.mp3")
-    error_log_path = os.path.join(log_directory, f"error_log_{current_time}_{file_uuid}.txt")
-    
-    # 入力テキストをログに記録
-    full_log = [f"処理開始時刻: {current_time}"]
-    full_log.append(f"入力テキスト:\n{text}\n")
-    full_log.append(f"音声モデル: {audio_model}")
-    full_log.append(f"話者1ボイス: {speaker_1_voice}")
-    full_log.append(f"話者2ボイス: {speaker_2_voice}\n")
-    
-    dialogue_lines = text.split('\n')
-    
-    # 成功フラグ
-    success = False
-    # エラーログを保存するリスト
-    error_logs = []
-    
-    # ファイルをバイナリ書き込みモードで開く
-    with open(file_path, 'wb') as f:
-        for line_idx, line in enumerate(dialogue_lines):
-            if not line.strip():
-                continue
-                
-            line_info = {
-                "line_number": line_idx + 1,
-                "original_text": line,
-                "processed_content": None,
-                "voice": None,
-                "status": "skipped"
-            }
-            
-            # スピーカー名に基づいて処理
-            if line.startswith(f"{SPEAKER_1_NAME}:"):
-                voice = speaker_1_voice
-                content = line.replace(f"{SPEAKER_1_NAME}:", "").strip()
-                line_info["voice"] = speaker_1_voice
-                line_info["processed_content"] = content
-                line_info["speaker"] = SPEAKER_1_NAME
-            elif line.startswith(f"{SPEAKER_2_NAME}:"):
-                voice = speaker_2_voice
-                content = line.replace(f"{SPEAKER_2_NAME}:", "").strip()
-                line_info["voice"] = speaker_2_voice
-                line_info["processed_content"] = content
-                line_info["speaker"] = SPEAKER_2_NAME
-            else:
-                full_log.append(f"行 {line_idx+1} をスキップ: スピーカー識別子なし")
-                continue
-            
-            if not content:
-                full_log.append(f"行 {line_idx+1} をスキップ: 内容なし")
-                continue
-                
-            # 処理開始をログに記録
-            process_start_time = datetime.datetime.now()
-            full_log.append(f"\n--- 行 {line_idx+1} 処理開始 [{process_start_time.strftime('%H:%M:%S')}] ---")
-            full_log.append(f"スピーカー: {line_info['speaker']}")
-            full_log.append(f"ボイス: {voice}")
-            full_log.append(f"テキスト: \"{content}\"")
-            
-            try:
-                # APIリクエストを最大3回試行
-                retry_count = 0
-                max_retries = 3
-                while retry_count < max_retries:
-                    try:
-                        retry_start_time = datetime.datetime.now()
-                        full_log.append(f"試行 {retry_count+1}/{max_retries} 開始 [{retry_start_time.strftime('%H:%M:%S')}]")
-                        
-                        # オーディオデータを取得
-                        audio_bytes = get_mp3(content, voice, audio_model)
-                        
-                        # データサイズをチェック
-                        if audio_bytes and len(audio_bytes) > 0:
-                            f.write(audio_bytes)
-                            line_info["status"] = "success"
-                            line_info["audio_size_bytes"] = len(audio_bytes)
-                            
-                            full_log.append(f"成功: オーディオデータサイズ {len(audio_bytes)} バイト")
-                            success = True
-                            break
-                        else:
-                            error_msg = f"警告: '{content[:30]}...'のオーディオデータが空です"
-                            line_info["status"] = "empty_response"
-                            
-                            full_log.append(error_msg)
-                            error_logs.append(error_msg)
-                            retry_count += 1
-                    except Exception as e:
-                        error_msg = f"リトライ {retry_count+1}/{max_retries}: {str(e)}"
-                        line_info["status"] = "error"
-                        line_info["error"] = str(e)
-                        
-                        full_log.append(error_msg)
-                        error_logs.append(error_msg)
-                        retry_count += 1
-                        time.sleep(3)  # リトライ間隔
-                        
-                process_end_time = datetime.datetime.now()
-                process_duration = (process_end_time - process_start_time).total_seconds()
-                full_log.append(f"--- 行 {line_idx+1} 処理完了 [{process_end_time.strftime('%H:%M:%S')}] 所要時間: {process_duration:.2f}秒 ---\n")
-                
-            except Exception as e:
-                error_msg = f"重大なエラー: 行 {line_idx+1} 処理中にキャッチされない例外が発生しました\n"
-                error_msg += f"内容: {content[:50]}...\nエラー詳細: {str(e)}\n"
-                error_msg += traceback.format_exc()
-                
-                line_info["status"] = "critical_error"
-                line_info["error"] = str(e)
-                line_info["traceback"] = traceback.format_exc()
-                
-                full_log.append(error_msg)
-                error_logs.append(error_msg)
-    
-    # ファイルサイズの確認
-    file_size = os.path.getsize(file_path)
-    full_log.append(f"\n最終処理結果:")
-    
-    if file_size == 0:
-        msg = f"警告: 生成されたオーディオファイルのサイズが0バイトです"
-        full_log.append(msg)
-        print(msg)
-        
-        msg = f"オーディオの生成に失敗しました。詳細はログファイルを確認してください: {error_log_path}"
-        full_log.append(msg)
-        error_logs.append(msg)
-        print(msg)
-    else:
-        msg = f"最終オーディオファイルサイズ: {file_size} バイト"
-        full_log.append(msg)
-        print(msg)
-    
-    # 常に詳細なログを保存（成功した場合も含む）
-    with open(error_log_path, 'w', encoding='utf-8') as log_file:
-        log_file.write("\n".join(full_log))
-    
-    # エラーが発生した場合はコンソールにログファイルの場所を表示
-    if error_logs:
-        print(f"詳細なエラーログをファイルに保存しました: {error_log_path}")
-    
-    return file_path
 
-def generate_audio_dialogue(topic, additional_info="", cefr_level="B1", word_count=300):
-    # 料金情報をリセット
-    global api_cost_info
+    current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_uuid = uuid.uuid4()
+    # Use NamedTemporaryFile for safer handling, will be cleaned up automatically if needed
+    # Or stick to explicit path if Gradio needs a persistent path before returning
+    file_path = os.path.join(temporary_directory, f"dialogue_{current_time}_{file_uuid}.mp3")
+    log_path = os.path.join(log_directory, f"log_{current_time}_{file_uuid}.txt")
+
+    full_log = [f"--- Log Start: {current_time} ---"]
+    full_log.append(f"Text Provider: {TEXT_PROVIDER} ({TEXT_MODEL})")
+    full_log.append(f"TTS Provider: {TTS_PROVIDER} ({audio_model_id})") # audio_model_id is like 'tts-1' or 'google-tts'
+    full_log.append(f"Speaker 1 ({SPEAKER_1_NAME}): {speaker_1_voice}")
+    full_log.append(f"Speaker 2 ({SPEAKER_2_NAME}): {speaker_2_voice}")
+    full_log.append(f"Output Audio File: {file_path}")
+    full_log.append(f"--- Input Text ---")
+    full_log.append(text)
+    full_log.append(f"--- Processing Log ---")
+
+    dialogue_lines = text.strip().split('\n')
+    error_logs = []
+    success_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    # Use BytesIO to accumulate audio in memory first
+    audio_accumulator = io.BytesIO()
+
+    for line_idx, line in enumerate(dialogue_lines):
+        line = line.strip()
+        if not line:
+            skipped_count += 1
+            continue
+
+        content = ""
+        voice = None
+        speaker_name = "Unknown"
+
+        if line.startswith(f"{SPEAKER_1_NAME}:"):
+            speaker_name = SPEAKER_1_NAME
+            voice = speaker_1_voice
+            content = line[len(SPEAKER_1_NAME)+1:].strip()
+        elif line.startswith(f"{SPEAKER_2_NAME}:"):
+            speaker_name = SPEAKER_2_NAME
+            voice = speaker_2_voice
+            content = line[len(SPEAKER_2_NAME)+1:].strip()
+        else:
+            full_log.append(f"Line {line_idx+1}: SKIPPED - No speaker prefix found.")
+            skipped_count += 1
+            continue
+
+        if not content:
+            full_log.append(f"Line {line_idx+1}: SKIPPED - Empty content after prefix.")
+            skipped_count += 1
+            continue
+
+        if not voice:
+            full_log.append(f"Line {line_idx+1}: SKIPPED - Voice for speaker '{speaker_name}' is not configured.")
+            error_logs.append(f"Line {line_idx+1}: Missing voice for {speaker_name}")
+            skipped_count += 1
+            continue
+
+
+        line_log_prefix = f"Line {line_idx+1} ({speaker_name}, Voice: {voice}): "
+        full_log.append(f"{line_log_prefix}Processing \"{content[:50]}...\"")
+
+        try:
+            # --- Synthesize Speech ---
+            # Retry logic can be added here if needed, similar to original code
+            audio_bytes = synthesize_speech(content, voice, audio_model_id)
+            # --- End Synthesize Speech ---
+
+            if audio_bytes and len(audio_bytes) > 0:
+                audio_accumulator.write(audio_bytes)
+                full_log.append(f"{line_log_prefix}SUCCESS - Audio size: {len(audio_bytes)} bytes")
+                success_count += 1
+            elif audio_bytes is None: # Explicit check for None indicating synthesis error
+                 full_log.append(f"{line_log_prefix}ERROR - Synthesis function returned None (error occurred)")
+                 error_logs.append(f"Line {line_idx+1}: Synthesis failed for '{content[:30]}...'")
+                 error_count += 1
+            else: # audio_bytes is empty but not None
+                 full_log.append(f"{line_log_prefix}WARNING - Received empty audio data (0 bytes)")
+                 # Treat as skippable or error? Let's count as error for now.
+                 error_logs.append(f"Line {line_idx+1}: Received empty audio for '{content[:30]}...'")
+                 error_count += 1
+
+        except Exception as e:
+            error_msg = f"CRITICAL ERROR during synthesis for line {line_idx+1}: {e}"
+            full_log.append(f"{line_log_prefix}{error_msg}")
+            full_log.append(traceback.format_exc()) # Add traceback to main log
+            error_logs.append(f"Line {line_idx+1}: Critical error - {e}")
+            error_count += 1
+            # Decide whether to continue or stop processing on critical error
+            # continue # Continue processing next lines
+
+    # --- Finalization ---
+    full_log.append(f"--- Processing Summary ---")
+    full_log.append(f"Successful lines: {success_count}")
+    full_log.append(f"Skipped lines: {skipped_count}")
+    full_log.append(f"Errored lines: {error_count}")
+
+    final_audio_bytes = audio_accumulator.getvalue()
+    if final_audio_bytes and len(final_audio_bytes) > 0:
+        with open(file_path, 'wb') as f_out:
+            f_out.write(final_audio_bytes)
+        final_size = len(final_audio_bytes)
+        full_log.append(f"Final audio file created: {file_path} ({final_size} bytes)")
+        print(f"Final audio file size: {final_size} bytes")
+        output_path = file_path
+    else:
+        full_log.append(f"ERROR: No audio data was generated. Output file '{file_path}' will be empty or not created.")
+        error_logs.append("Failed to generate any audio content.")
+        output_path = None # Indicate failure
+
+    # Save the detailed log
+    try:
+        with open(log_path, 'w', encoding='utf-8') as log_file:
+            log_file.write("\n".join(full_log))
+        print(f"Detailed log saved to: {log_path}")
+    except Exception as log_e:
+        print(f"Error writing log file '{log_path}': {log_e}")
+
+
+    if error_logs:
+        print(f"--- ERRORS ENCOUNTERED ({error_count}) ---")
+        for err in error_logs[:10]: # Print first 10 errors
+            print(err)
+        if error_count > 10:
+            print(f"... and {error_count - 10} more errors. See log file for details.")
+        print(f"--------------------------")
+        # Optionally raise an error or return specific error status if needed by Gradio
+
+    # Return the path ONLY if successful
+    return output_path if output_path else "Audio generation failed. Check logs."
+
+
+def generate_audio_dialogue(topic, additional_info="", cefr_level="B1", word_count=300, 
+                           text_provider=None, text_model=None, tts_provider=None):
+    """Main Gradio function to generate dialogue and audio."""
+    global api_cost_info, TEXT_PROVIDER, TTS_PROVIDER, TEXT_MODEL, gemini_model
+    
+    # 元の設定を保存
+    original_text_provider = TEXT_PROVIDER
+    original_tts_provider = TTS_PROVIDER
+    original_text_model = TEXT_MODEL
+    
+    # UIから設定が変更された場合
+    provider_changed = False
+    model_changed = False
+    
+    if text_provider and text_provider.lower() != TEXT_PROVIDER:
+        TEXT_PROVIDER = text_provider.lower()
+        provider_changed = True
+    
+    if text_model and text_model != TEXT_MODEL:
+        TEXT_MODEL = text_model
+        model_changed = True
+    
+    if tts_provider and tts_provider.lower() != TTS_PROVIDER:
+        TTS_PROVIDER = tts_provider.lower()
+    
+    # プロバイダーまたはモデルが変更された場合、クライアントを再初期化
+    if TEXT_PROVIDER == "google" and (provider_changed or model_changed):
+        gemini_model = initialize_gemini_client()
+        if not gemini_model:
+            print(f"Warning: Failed to initialize Gemini model '{TEXT_MODEL}'")
+            # エラーメッセージを返す
+            return f"Error: Failed to initialize Gemini model '{TEXT_MODEL}'. Check API key and model name.", None, "Error: Client initialization failed."
+    
+    # コスト情報のリセット
     api_cost_info = {
         "text_generation": 0.0,
         "audio_generation": 0.0,
@@ -379,44 +743,101 @@ def generate_audio_dialogue(topic, additional_info="", cefr_level="B1", word_cou
         "details": []
     }
     
-    # 環境変数から設定を取得
-    audio_model = AUDIO_MODEL
-    speaker_1_voice = SPEAKER_1_VOICE
-    speaker_2_voice = SPEAKER_2_VOICE
-    
-    # 追加情報を渡す
-    dialogue_text = generate_dialogue(topic, cefr_level, word_count, additional_info)
-    audio_file_path = text_to_audio(dialogue_text, speaker_1_voice, speaker_2_voice, audio_model)
-    
-    # 料金情報を整形
-    cost_summary = f"""
-==== API利用料金 ====
-テキスト生成: ${api_cost_info['text_generation']:.4f}
-音声生成: ${api_cost_info['audio_generation']:.4f}
-合計: ${api_cost_info['total']:.4f}
+    print(f"\n--- New Request ---")
+    print(f"Topic: {topic}, CEFR: {cefr_level}, Words: {word_count}, AddInfo: {additional_info}")
+    print(f"Text Provider: {TEXT_PROVIDER}, TTS Provider: {TTS_PROVIDER}")
 
-※日本円換算: {api_cost_info['total'] * 150:.0f}円 (1ドル=150円として計算)
-===================
-    """
-    
-    return dialogue_text, audio_file_path, cost_summary
+    dialogue_text = "Error: Dialogue generation failed."
+    audio_output = None # Use None for audio output on failure
+    cost_summary = "Error: Cost calculation failed."
 
+    try:
+        # 1. Generate Dialogue Text
+        dialogue_text = generate_dialogue(topic, cefr_level, word_count, additional_info)
+
+        # 2. Generate Audio from Text
+        # Pass the correct voice names based on config
+        audio_file_path = text_to_audio(dialogue_text, SPEAKER_1_VOICE, SPEAKER_2_VOICE, AUDIO_MODEL)
+
+        # Check if audio generation succeeded
+        if audio_file_path and isinstance(audio_file_path, str) and os.path.exists(audio_file_path):
+             audio_output = audio_file_path # Set the output path for Gradio Audio component
+        else:
+             # audio_file_path might contain an error message string or be None
+             print(f"Audio generation failed. Reason: {audio_file_path}")
+             dialogue_text += "\n\n--- WARNING: Audio generation failed. See logs for details. ---"
+             audio_output = None # Ensure audio output is None
+
+        # 3. Format Cost Summary
+        total_cost = api_cost_info['total']
+        # Rough JPY conversion (update rate as needed)
+        jpy_rate = 155
+        jpy_cost = total_cost * jpy_rate
+
+        cost_summary = f"""
+==== API Usage Cost ====
+Text Generation ({TEXT_PROVIDER}): ${api_cost_info['text_generation']:.6f}
+Audio Generation ({TTS_PROVIDER}): ${api_cost_info['audio_generation']:.6f}
+Total: ${total_cost:.6f}
+
+Estimated JPY: ¥{jpy_cost:,.0f} (at ¥{jpy_rate}/USD)
+====================
+
+Cost Details Logged: {len(api_cost_info['details'])} API call(s)
+"""
+        # Optionally add more details from api_cost_info['details'] if needed
+
+    except Exception as e:
+        print(f"--- Error in generate_audio_dialogue ---")
+        print(f"Error: {e}")
+        traceback.print_exc()
+        print(f"--------------------------------------")
+        # Update outputs to show error state
+        dialogue_text = f"An error occurred: {e}\n\n{traceback.format_exc()}"
+        audio_output = None
+        cost_summary = f"An error occurred: {e}"
+
+    # Ensure outputs match Gradio component types
+    # Textbox expects string, Audio expects filepath string or None, Textbox expects string
+    return dialogue_text, audio_output, cost_summary
+
+# --- Gradio UI ---
 ui = gr.Interface(
     fn=generate_audio_dialogue,
     inputs=[
-        gr.Textbox(label="トピック", placeholder="e.g., Indie Hacking"),
-        gr.Textbox(label="追加情報（オプション）", placeholder="", lines=3),
-        gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="CEFRレベル", value="B1", info="CEFRレベルは目安であり、実際の難易度は内容により変動することがあります。"),
-        gr.Slider(minimum=100, maximum=5000, value=300, step=50, label="単語数", info=""),
+        gr.Textbox(label="Topic", placeholder="e.g., The Future of Remote Work"),
+        gr.Textbox(label="Additional Info / Constraints (Optional)", placeholder="e.g., Mention the challenges of time zones. Keep the tone optimistic.", lines=3),
+        gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="CEFR Level", value="B1"),
+        gr.Slider(minimum=100, maximum=2000, value=300, step=50, label="Target Word Count", info="The AI will try its best to match this count."),
     ],
     outputs=[
-        gr.Textbox(label="トランスクリプト"),
-        gr.Audio(label="音声ファイル", type="filepath"),
-        gr.Textbox(label="API利用料金")
+        gr.Textbox(label="Generated Dialogue Transcript", lines=15),
+        gr.Audio(label="Generated Podcast Audio", type="filepath"), # type="filepath" is correct
+        gr.Textbox(label="API Cost Estimate")
     ],
-    title="CEFR English Podcast ジェネレーター",
-    description="トピックとCEFRレベルに基づいて英語学習者向け会話音声教材を生成します。単語数や追加情報を入力して、ニーズに合わせた会話を生成できます。"
+    title="AI English Podcast Generator (OpenAI/Google)",
+    description=f"Generate English learning podcast dialogues using AI. \n"
+                f"Currently configured for: Text: **{TEXT_PROVIDER.upper()} ({TEXT_MODEL})**, "
+                f"Audio: **{TTS_PROVIDER.upper()} ({AUDIO_MODEL} - Spk1: {SPEAKER_1_VOICE}, Spk2: {SPEAKER_2_VOICE})**. \n"
+                f"Configure providers and models in the `.env` file.",
+    allow_flagging='never',
+    # examples=[ # Add examples if desired
+    #     ["Learning English Phrasal Verbs", "", "B2", 400],
+    #     ["A Trip to London", "Focus on vocabulary for ordering food and asking directions.", "A2", 250]
+    # ]
 )
 
 if __name__ == "__main__":
+    print("--- Initializing Application ---")
+    if TEXT_PROVIDER == "google" and not gemini_model:
+         print("WARNING: Google Text Provider selected, but Gemini model failed to initialize. Text generation will fail.")
+    if TTS_PROVIDER == "google" and not google_tts_client:
+         print("WARNING: Google TTS Provider selected, but TTS client failed to initialize. Audio generation will fail.")
+    if TEXT_PROVIDER == "openai" and not openai_client and TTS_PROVIDER != "openai": # Only warn if OpenAI text needed but not available
+         print("WARNING: OpenAI Text Provider selected, but client failed to initialize (check API Key?). Text generation will fail.")
+    if TTS_PROVIDER == "openai" and not openai_client: # Warn if OpenAI TTS needed but not available
+         print("WARNING: OpenAI TTS Provider selected, but client failed to initialize (check API Key?). Audio generation will fail.")
+    print("-----------------------------")
+    # Consider adding a check here to ensure at least one provider for text/TTS is working before launching
     ui.launch()
+

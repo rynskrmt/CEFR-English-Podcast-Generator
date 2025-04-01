@@ -1,3 +1,5 @@
 gradio
 openai
 python-dotenv
+google-generativeai 
+google-cloud-texttospeech
