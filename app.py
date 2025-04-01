@@ -367,11 +367,11 @@ def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
     # Keep the prompt structure mostly the same, as both models understand it.
     # Minor tweaks might be needed based on observed model behavior.
     prompt = f"""
-        Generate an engaging yet **comfortably paced** podcast dialogue for English language learners at CEFR level {cefr_level}.
+        Generate an engaging yet comfortably paced podcast dialogue for English language learners at CEFR level {cefr_level}.
         Topic: '{topic}'.{additional_info_text}
 
-        Style: Sound like a **clear, informative, and welcoming educational podcast episode**. Maintain a **natural, conversational flow** between the hosts, similar to a relaxed NPR segment, but with a clear sense of **podcast structure and progression**. Use accessible language for the CEFR level. The tone should be **friendly and approachable for the listener**.
-        Speakers: Clearly identify turns for "{SPEAKER_1_NAME}" and "{SPEAKER_2_NAME}". Alternate turns naturally. It's okay if **one speaker occasionally guides the conversation slightly more** (e.g., introducing subtopics, wrapping up points) to enhance the podcast flow, but keep it balanced overall.
+        Style: Sound like a clear, informative, and welcoming educational podcast episode. Maintain a natural, conversational flow between the hosts, similar to a relaxed NPR segment, but with a clear sense of podcast structure and progression. Use accessible language for the CEFR level. The tone should be friendly and approachable for the listener.
+        Speakers: Clearly identify turns for "{SPEAKER_1_NAME}" and "{SPEAKER_2_NAME}". Alternate turns naturally. It's okay if one speaker occasionally guides the conversation slightly more (e.g., introducing subtopics, wrapping up points) to enhance the podcast flow, but keep it balanced overall.
         Format:
         {SPEAKER_1_NAME}: [Dialogue text]
         {SPEAKER_2_NAME}: [Dialogue text]
@@ -379,19 +379,21 @@ def generate_dialogue(topic, cefr_level, word_count=300, additional_info=""):
         Content Requirements:
         - Total Length: STRICTLY {word_count} words. Count carefully, fitting the content naturally within this limit.
         - Structure:
-            - **Clear Podcast Intro:** Welcome the listener, briefly introduce the hosts (if first time implied) and the episode's topic.
-            - **Structured Body:** Discuss the main points/subtopics in a logical sequence. Use **smooth transitions** between points, perhaps with phrases like "So, moving on to..." or "That reminds me of...".
-            - **Clear Podcast Outro:** Summarize the key takeaways conversationally, thank the listener for tuning in, and perhaps hint at the next episode or give a simple call to action (e.g., "think about this," "try this out").
-        - Educational Elements: Define specialized terms simply *within the natural conversation*. Highlight key points or facts as interesting discussion points, not dry facts.
-        - Engagement: Include interesting details or relatable anecdotes. Make the listener feel **included and informed**. Light humor is okay if it fits the topic and tone.
-        - **Conversational Flow & Podcast Feel:** **Naturally incorporate** features of spoken English and podcasting:
+            - Clear Podcast Intro: Welcome the listener, briefly introduce the hosts (if first time implied) and the episode's topic.
+            - Structured Body: Discuss the main points/subtopics in a logical sequence. Use smooth transitions between points, perhaps with phrases like "So, moving on to..." or "That reminds me of...".
+            - Clear Podcast Outro: Summarize the key takeaways conversationally, thank the listener for tuning in, and perhaps hint at the next episode or give a simple call to action (e.g., think about this, try this out).
+        - Educational Elements: Define specialized terms simply within the natural conversation. Highlight key points or facts as interesting discussion points, not dry facts.
+        - Engagement: Include interesting details or relatable anecdotes. Make the listener feel included and informed. Light humor is okay if it fits the topic and tone.
+        - Conversational Flow & Podcast Feel: Naturally incorporate features of spoken English and podcasting:
             - Occasional, appropriate fillers (e.g., 'well,' 'you know,' 'so,' 'right') used sparingly.
             - Natural pauses or hesitations (...).
             - Phrases for agreement, transition, and active listening ('Right,' 'That's a good point,' 'Okay, so let's talk about...').
-            - **Subtle awareness of the listener** (without overdoing direct address).
-        - Technical: Avoid markdown or special characters *within the dialogue text itself*.
+            - Subtle awareness of the listener (without overdoing direct address).
+            - **Rare instances of repeated words or phrases for  simulate natural hesitation (e.g., "It's a a really good point," or "So, so what do you think?")**
+        - Technical: Avoid markdown or special characters within the dialogue text itself. **Crucially, do not include any formatting characters used in this prompt (like quotation marks) within the generated dialogue. Write plain text.**
 
-        Remember the primary goal: create an **authentic-sounding and well-structured podcast episode** that is **engaging, educational, easy to follow, and comfortable** for English learners at the specified level and EXACT word count. It should sound like a real podcast they would enjoy listening to.
+        Remember the primary goal: create an authentic-sounding and well-structured podcast episode that is engaging, educational, easy to follow, and comfortable for English learners at the specified level and EXACT word count. It should sound like a real podcast they would enjoy listening to.
+        Must use EXACTLY {cefr_level} level vocabulary and grammar.
         """
     # --- End Unified Prompt ---
 
