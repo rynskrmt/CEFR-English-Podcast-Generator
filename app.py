@@ -158,7 +158,7 @@ class OpenAIHandler(BaseProviderHandler):
     """Handles OpenAI API interactions."""
     def __init__(self, config: AppConfig):
         super().__init__(config)
-        self.client: Optional["OpenAI"] = None
+        self.client: Optional[OpenAI] = None
         if OpenAI and config.openai_api_key:
             try:
                 self.client = OpenAI(api_key=config.openai_api_key)
