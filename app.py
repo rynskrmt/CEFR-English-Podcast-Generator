@@ -41,17 +41,6 @@ print(f"DEBUG: TEXT_PROVIDER = '{TEXT_PROVIDER}'")
 print(f"DEBUG: TTS_PROVIDER = '{TTS_PROVIDER}'")
 print(f"DEBUG: TEXT_MODEL = '{TEXT_MODEL}'")
 
-# --- Configuration ---
-TEXT_PROVIDER = os.getenv("TEXT_PROVIDER", "openai").lower() # Default to openai
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "openai").lower()   # Default to openai
-
-TEXT_MODEL = os.getenv("TEXT_MODEL")
-AUDIO_MODEL = os.getenv("AUDIO_MODEL") # Identifier (e.g., "tts-1", "google-tts")
-SPEAKER_1_VOICE = os.getenv("SPEAKER_1_VOICE")
-SPEAKER_2_VOICE = os.getenv("SPEAKER_2_VOICE")
-SPEAKER_1_NAME = os.getenv("SPEAKER_1_NAME", "Speaker 1")
-SPEAKER_2_NAME = os.getenv("SPEAKER_2_NAME", "Speaker 2")
-
 # --- Client Initialization ---
 openai_client = None
 gemini_model = None
@@ -136,29 +125,27 @@ elif TTS_PROVIDER == "google" and texttospeech:
 MODEL_PRICES = {
     # OpenAI
     "gpt-4o": {"input": 0.005 / 1000, "output": 0.015 / 1000}, # Price per token
-    # ... other OpenAI models ...
-    # Google Gemini (Example using per character pricing for simplicity, check official pricing)
-    # Using "per 1k chars" similar to some Vertex AI models as an example
     "gemini-1.5-flash-latest": {"input": 0.000125 / 1000, "output": 0.000375 / 1000}, # Example per 1k characters
     "gemini-1.5-pro-latest": {"input": 0.00125 / 1000, "output": 0.00375 / 1000},    # Example per 1k characters
     "gemini-pro": {"input": 0.000125 / 1000, "output": 0.000375 / 1000}, # Example per 1k chars (check if token based)
+    "gemini-2.0-flash": {"input": 0.00010 / 1000, "output": 0.0004 / 1000},    # Example per 1k characters
 }
 
 TTS_PRICES = {
     # OpenAI (per 1k characters)
     "tts-1": 0.015 / 1000,
     "tts-1-hd": 0.030 / 1000,
-    # Google Cloud TTS (per 1 character, after free tier)
-    # Standard voices: $4 per 1 million chars = $0.000004 per char
-    # WaveNet voices: $16 per 1 million chars = $0.000016 per char
-    "google-tts-standard": 0.000004, # Price per character
-    "google-tts-wavenet": 0.000016   # Price per character
+    "google-tts-standard": 0.004 / 1000,
+    "google-tts-wavenet": 0.030 / 1000,
+    "google-tts-chirp3-hd": 0.030 / 1000,
 }
 
 # Helper to determine Google TTS price tier based on voice name
 def get_google_tts_tier(voice_name):
     if voice_name and "Wavenet" in voice_name:
         return "google-tts-wavenet"
+    elif "Chirp3-HD" in voice_name:
+        return "google-tts-chirp3-hd"
     else:
         return "google-tts-standard"
 
@@ -303,7 +290,7 @@ def generate_dialogue_gemini(prompt, text_model, max_words):
         raise ValueError(f"Gemini model '{TEXT_MODEL}' not initialized. Check API key and model name.")
     try:
         # Gemini uses max_output_tokens. Estimate based on words.
-        max_output_tokens = max_words * 3 # Rough estimate: 3 tokens per word
+        max_output_tokens = max_words * 4 # Rough estimate: 4 tokens per word
 
         # generation_configの設定
         generation_config = {
@@ -497,7 +484,7 @@ def synthesize_speech_google(text, voice_name, language_code="en-US", audio_enco
         raise ValueError("Google TTS client not initialized.")
     try:
         # Calculate cost *before* the API call
-        calculate_tts_cost("google", "google-tts", voice_name, text) # Use generic ID 'google-tts'
+        calculate_tts_cost("google", AUDIO_MODEL, voice_name, text) # Use generic ID 'google-tts'
 
         synthesis_input = texttospeech.SynthesisInput(text=text)
 
@@ -600,6 +587,12 @@ def text_to_audio(text, speaker_1_voice, speaker_2_voice, audio_model_id):
     # Use BytesIO to accumulate audio in memory first
     audio_accumulator = io.BytesIO()
 
+    # 初期情報をターミナルにも出力
+    print(f"--- Processing Audio Generation ---")
+    print(f"TTS Provider: {TTS_PROVIDER} ({audio_model_id})")
+    print(f"Speaker 1 ({SPEAKER_1_NAME}): {speaker_1_voice}")
+    print(f"Speaker 2 ({SPEAKER_2_NAME}): {speaker_2_voice}")
+
     for line_idx, line in enumerate(dialogue_lines):
         line = line.strip()
         if not line:
@@ -646,7 +639,9 @@ def text_to_audio(text, speaker_1_voice, speaker_2_voice, audio_model_id):
 
             if audio_bytes and len(audio_bytes) > 0:
                 audio_accumulator.write(audio_bytes)
+                success_msg = f"Line {line_idx+1}: SUCCESS - {speaker_name} (Voice: {voice})"
                 full_log.append(f"{line_log_prefix}SUCCESS - Audio size: {len(audio_bytes)} bytes")
+                print(success_msg)
                 success_count += 1
             elif audio_bytes is None: # Explicit check for None indicating synthesis error
                  full_log.append(f"{line_log_prefix}ERROR - Synthesis function returned None (error occurred)")
@@ -751,7 +746,10 @@ def generate_audio_dialogue(topic, additional_info="", cefr_level="B1", word_cou
     
     print(f"\n--- New Request ---")
     print(f"Topic: {topic}, CEFR: {cefr_level}, Words: {word_count}, AddInfo: {additional_info}")
-    print(f"Text Provider: {TEXT_PROVIDER}, TTS Provider: {TTS_PROVIDER}")
+    print(f"Text Provider: {TEXT_PROVIDER}, Model: {TEXT_MODEL}")
+    print(f"TTS Provider: {TTS_PROVIDER}, Model: {AUDIO_MODEL}")
+    print(f"Speaker 1 ({SPEAKER_1_NAME}): {SPEAKER_1_VOICE}")
+    print(f"Speaker 2 ({SPEAKER_2_NAME}): {SPEAKER_2_VOICE}")
 
     dialogue_text = "Error: Dialogue generation failed."
     audio_output = None # Use None for audio output on failure
@@ -835,6 +833,11 @@ ui = gr.Interface(
 
 if __name__ == "__main__":
     print("--- Initializing Application ---")
+    print(f"Text Provider: {TEXT_PROVIDER} ({TEXT_MODEL})")
+    print(f"TTS Provider: {TTS_PROVIDER} ({AUDIO_MODEL})")
+    print(f"Speaker 1 ({SPEAKER_1_NAME}): {SPEAKER_1_VOICE}")
+    print(f"Speaker 2 ({SPEAKER_2_NAME}): {SPEAKER_2_VOICE}")
+    
     if TEXT_PROVIDER == "google" and not gemini_model:
          print("WARNING: Google Text Provider selected, but Gemini model failed to initialize. Text generation will fail.")
     if TTS_PROVIDER == "google" and not google_tts_client:
