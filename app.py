@@ -777,20 +777,35 @@ def generate_audio_dialogue(topic, additional_info="", cefr_level="B1", word_cou
         # 3. Format Cost Summary
         total_cost = api_cost_info['total']
         # Rough JPY conversion (update rate as needed)
-        jpy_rate = 155
+        jpy_rate = 150
         jpy_cost = total_cost * jpy_rate
 
+        # テキスト生成で処理した総文字数を計算
+        total_text_characters = 0
+        for detail in api_cost_info['details']:
+            if detail.get('type') == 'text_generation' and 'character_count' in detail:
+                total_text_characters += detail['character_count']
+
+        # 音声合成で処理した総文字数を計算
+        total_tts_characters = 0
+        for detail in api_cost_info['details']:
+            if detail.get('type') == 'audio_generation' and 'character_count' in detail:
+                total_tts_characters += detail['character_count']
+
         cost_summary = f"""
-==== API Usage Cost ====
-Text Generation ({TEXT_PROVIDER}): ${api_cost_info['text_generation']:.6f}
-Audio Generation ({TTS_PROVIDER}): ${api_cost_info['audio_generation']:.6f}
-Total: ${total_cost:.6f}
+            ==== API 使用料 ====
+            テキスト生成 ({TEXT_PROVIDER}): ${api_cost_info['text_generation']:.6f} 
+            音声生成 ({TTS_PROVIDER}): ${api_cost_info['audio_generation']:.6f} ({total_tts_characters:,} 文字)
+            合計: ${total_cost:.6f}
 
-Estimated JPY: ¥{jpy_cost:,.0f} (at ¥{jpy_rate}/USD)
-====================
+            円換算: ¥{jpy_cost:,.0f} (1USD = ¥{jpy_rate}/USD)
+            ====================
 
-Cost Details Logged: {len(api_cost_info['details'])} API call(s)
-"""
+            使用料の詳細: {len(api_cost_info['details'])} API call(s)
+            使用したテキストモデル: {TEXT_MODEL}
+            使用した音声ボイス1: {SPEAKER_1_VOICE}
+            使用した音声ボイス2: {SPEAKER_2_VOICE}
+            """
         # Optionally add more details from api_cost_info['details'] if needed
 
     except Exception as e:
@@ -811,26 +826,22 @@ Cost Details Logged: {len(api_cost_info['details'])} API call(s)
 ui = gr.Interface(
     fn=generate_audio_dialogue,
     inputs=[
-        gr.Textbox(label="Topic", placeholder="e.g., The Future of Remote Work"),
-        gr.Textbox(label="Additional Info / Constraints (Optional)", placeholder="e.g., Mention the challenges of time zones. Keep the tone optimistic.", lines=3),
-        gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="CEFR Level", value="B1"),
-        gr.Slider(minimum=100, maximum=2000, value=300, step=50, label="Target Word Count", info="The AI will try its best to match this count."),
+        gr.Textbox(label="トピック", placeholder="例：Indie Hacking"),
+        gr.Textbox(label="追加情報／制約（任意）", lines=3),
+        gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="CEFR レベル", value="B1", info="CEFRレベルは、英語学習者のレベルを示す指標です。"),
+        gr.Slider(minimum=100, maximum=1500, value=200, step=50, label="目標単語数"),
     ],
     outputs=[
-        gr.Textbox(label="Generated Dialogue Transcript", lines=15),
-        gr.Audio(label="Generated Podcast Audio", type="filepath"), # type="filepath" is correct
-        gr.Textbox(label="API Cost Estimate")
+        gr.Textbox(label="対話スクリプト", lines=15),
+        gr.Audio(label="ポッドキャスト音声", type="filepath"),
+        gr.Textbox(label="API コスト見積もり")
     ],
-    title="AI English Podcast Generator (OpenAI/Google)",
-    description=f"Generate English learning podcast dialogues using AI. \n"
-                f"Currently configured for: Text: **{TEXT_PROVIDER.upper()} ({TEXT_MODEL})**, "
-                f"Audio: **{TTS_PROVIDER.upper()} ({AUDIO_MODEL} - Spk1: {SPEAKER_1_VOICE}, Spk2: {SPEAKER_2_VOICE})**. \n"
-                f"Configure providers and models in the `.env` file.",
+    title="CEFR English Podcast ジェネレーター（OpenAI/Google）",
+    description=f"トピックとCEFRレベルに基づいて、英語学習ポッドキャストの対話を生成します。 \n"
+                f"現在の設定：テキスト: **{TEXT_PROVIDER.upper()} ({TEXT_MODEL})**, "
+                f"音声: **{TTS_PROVIDER.upper()} ({AUDIO_MODEL} - スピーカー1: {SPEAKER_1_VOICE}, スピーカー2: {SPEAKER_2_VOICE})**. \n"
+                f"プロバイダーとモデルの設定は`.env`ファイルで行ってください。",
     allow_flagging='never',
-    # examples=[ # Add examples if desired
-    #     ["Learning English Phrasal Verbs", "", "B2", 400],
-    #     ["A Trip to London", "Focus on vocabulary for ordering food and asking directions.", "A2", 250]
-    # ]
 )
 
 if __name__ == "__main__":
@@ -849,6 +860,6 @@ if __name__ == "__main__":
     if TTS_PROVIDER == "openai" and not openai_client: # Warn if OpenAI TTS needed but not available
          print("WARNING: OpenAI TTS Provider selected, but client failed to initialize (check API Key?). Audio generation will fail.")
     print("-----------------------------")
-    # Consider adding a check here to ensure at least one provider for text/TTS is working before launching
+ 
     ui.launch()
 
