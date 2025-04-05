@@ -9,3 +9,7 @@ logs/*
 .env
 
 .DS_Store
+
+gifted-concept*.json
+
+*/__pycache__/*
