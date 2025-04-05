@@ -23,8 +23,8 @@ from typing import Optional, Dict, Any, Tuple, List, Union, Type
 # --- Provider Specific Imports with Graceful Handling ---
 try:
     from openai import OpenAI, APIError
-except ImportError:
-    print("Warning: OpenAI library not installed. OpenAI features will be unavailable.")
+except ImportError as e:
+    print("Warning: OpenAI library not installed: {e}. OpenAI features will be unavailable.")
     OpenAI = None # type: ignore
     APIError = None # type: ignore
 
@@ -282,6 +282,10 @@ class OpenAIHandler(BaseProviderHandler):
             APIError: If the OpenAI API returns an error.
             Exception: For other unexpected errors during generation.
         """
+        if self.text_provider not in [PROVIDER_OPENAI, PROVIDER_GOOGLE]:
+            raise ValueError(f"Invalid text provider: {self.text_provider}")
+        if self.tts_provider not in [PROVIDER_OPENAI, PROVIDER_GOOGLE]:
+            raise ValueError(f"Invalid TTS provider: {self.tts_provider}")
         if not self.is_available():
             raise RuntimeError("OpenAI client is not available. Check API key and installation.")
         if not self.config.text_model:
@@ -972,6 +976,7 @@ def text_to_audio(
             full_log.append(f"{line_log_prefix}CRITICAL ERROR:\n{traceback.format_exc()}")
             error_messages.append(f"Line {line_num}: Critical Error - {type(e).__name__}")
             print(f"CRITICAL ERROR: {error_msg}")
+            raise e
             # Decide whether to continue or break based on error type (e.g., auth errors might be fatal)
             # For now, continue processing other lines.
 
