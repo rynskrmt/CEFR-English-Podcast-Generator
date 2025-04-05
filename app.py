@@ -1297,32 +1297,39 @@ def create_gradio_interface() -> gr.Interface:
     """
 
     print("Gradioインターフェースを作成中...")
-    return gr.Interface(
-        fn=generate_audio_dialogue_wrapper,
-        inputs=[
-            gr.Textbox(label="トピック", placeholder="例：毎日の読書の利点"),
-            gr.Textbox(label="追加情報／制約（任意）", lines=3,
-                       placeholder="例：非常に楽観的なトーンで。可能であれば具体的な本のタイトルに言及してください。"),
-            gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="対象 CEFR レベル", value="B1",
-                        info="おおよその英語能力レベルを選択してください。"),
-            gr.Slider(minimum=100, maximum=1500, value=350, step=50, label="目標単語数",
-                      info="対話スクリプトのおおよその合計単語数。"),
-        ],
-        outputs=[
-            gr.Textbox(label="生成された対話スクリプト", lines=20, show_copy_button=True),
-            # 'filepath' はGradio Audioコンポーネントにパス文字列を返すのに適しています
-            gr.Audio(label="生成されたポッドキャスト音声", type="filepath", format="mp3"),
-            gr.Textbox(label="APIコスト見積もりと詳細", lines=15, show_copy_button=True)
-        ],
-        title="CEFR English Podcast ジェネレーター（OpenAI/Google対応）", # Titleを日本語に戻す
-        description=ui_description, # Descriptionを日本語に戻す
-        flagging_mode='never', # フラグ付けは無効
-        # examples=[ # 必要に応じて関連する例を追加
-        #     ["ポッドキャストで英語学習", "", "B1", 250],
-        #     ["リモートワークの未来", "メリットとデメリットを議論する", "B2", 500],
-        #     ["健康的な食習慣", "シンプルで実践的なヒントに焦点を当てる", "A2", 200],
-        # ]
-    )
+    
+    with gr.Blocks() as demo:
+        gr.Markdown("# CEFR English Podcast ジェネレーター（OpenAI/Google対応）")
+        
+        with gr.Accordion("設定情報を表示", open=False):
+            gr.Markdown(ui_description)
+            
+        with gr.Row():
+            # 左側のカラム - 入力フォーム
+            with gr.Column(scale=1):
+                topic = gr.Textbox(label="トピック", placeholder="例：毎日の読書の利点")
+                additional_info = gr.Textbox(label="追加情報／制約（任意）", lines=3,
+                                    placeholder="例：非常に楽観的なトーンで。可能であれば具体的な本のタイトルに言及してください。")
+                cefr_level = gr.Dropdown(choices=["A1", "A2", "B1", "B2", "C1", "C2"], label="対象 CEFR レベル", value="B1",
+                                    info="おおよその英語能力レベルを選択してください。")
+                word_count = gr.Slider(minimum=100, maximum=1500, value=350, step=50, label="目標単語数",
+                                    info="対話スクリプトのおおよその合計単語数。")
+                
+                generate_btn = gr.Button("生成", variant="primary")
+            
+            # 右側のカラム - 出力結果
+            with gr.Column(scale=1):
+                output_dialogue = gr.Textbox(label="生成された対話スクリプト", lines=20, show_copy_button=True)
+                output_audio = gr.Audio(label="生成されたポッドキャスト音声", type="filepath", format="mp3")
+                output_cost = gr.Textbox(label="APIコスト見積もりと詳細", lines=5, show_copy_button=True)
+        
+        generate_btn.click(
+            fn=generate_audio_dialogue_wrapper,
+            inputs=[topic, additional_info, cefr_level, word_count],
+            outputs=[output_dialogue, output_audio, output_cost]
+        )
+        
+    return demo
 
 # --- Main Execution Block ---
 if __name__ == "__main__":
