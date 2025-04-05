@@ -1299,9 +1299,9 @@ def create_gradio_interface() -> gr.Interface:
     print("Gradioインターフェースを作成中...")
     
     with gr.Blocks() as demo:
-        gr.Markdown("# CEFR English Podcast ジェネレーター（OpenAI/Google対応）")
+        gr.Markdown("# CEFR English Podcast ジェネレーター")
         
-        with gr.Accordion("設定情報を表示", open=False):
+        with gr.Accordion("設定情報", open=False):
             gr.Markdown(ui_description)
             
         with gr.Row():
